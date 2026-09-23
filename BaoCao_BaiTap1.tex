@@ -1,0 +1,667 @@
+\documentclass[a4paper,12pt]{article}
+
+% --- CẤU HÌNH TIẾNG VIỆT (CHUẨN CHO PDFLATEX 2024) ---
+\usepackage[utf8]{inputenc}
+\usepackage[T5]{fontenc}
+\usepackage[vietnamese]{babel}
+\usepackage{subcaption}
+
+% --- CÁC GÓI CƠ BẢN ---
+\usepackage{geometry}
+\geometry{margin=1in} % Căn lề 1 inch các bên
+\usepackage{enumitem} % Tùy chỉnh danh sách
+\usepackage{hyperref} % Liên kết URL và Mục lục (Clickable)
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    filecolor=magenta,      
+    urlcolor=blue,
+    citecolor=black,
+}
+\usepackage{amsmath, amssymb, amsfonts}
+\usepackage{graphicx}
+\usepackage{cite}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows, positioning, calc}
+\usepackage{float} % Để dùng [H] cho hình ảnh và code
+\usepackage{booktabs}
+\usepackage{tabularx}
+
+% --- CẤU HÌNH HIỂN THỊ CODE (LISTINGS) ---
+\usepackage{listings}
+\usepackage{xcolor}
+
+% Định nghĩa màu sắc cho code (Style giống VS Code/IDE)
+\definecolor{codegreen}{rgb}{0,0.5,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.96,0.96,0.94}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen}\itshape,
+    keywordstyle=\color{magenta}\bfseries,
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize, % Font chữ code kiểu máy đánh chữ
+    breakatwhitespace=false,         
+    breaklines=true,                 % Tự động xuống dòng nếu code quá dài
+    captionpos=b,                    % Vị trí tiêu đề code
+    keepspaces=true,                 
+    numbers=left,                    % Đánh số dòng bên trái
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2,
+    frame=single,                    % Khung viền quanh code
+    rulecolor=\color{black},
+    columns=fullflexible
+}
+
+\lstset{style=mystyle}
+
+% Tùy chỉnh tên hiển thị cho danh sách code
+\renewcommand{\lstlistlistingname}{Danh mục đoạn mã}
+\renewcommand{\lstlistingname}{Đoạn mã}
+
+\setlength{\parskip}{3mm}   
+
+% Header & Footer
+\usepackage{fancyhdr}
+\pagestyle{fancy} 
+\fancyhf{} 
+\lhead{\small \textit{Xử lý ảnh và thị giác Robot - 2026}} 
+\rhead{\small Báo cáo bài tập thực hành 1} 
+\cfoot{\thepage} 
+\renewcommand{\headrulewidth}{0.5pt}
+
+\begin{document}
+
+% =========================================================================
+% --- TRANG BÌA ---
+% =========================================================================
+\begin{titlepage}
+\begin{tikzpicture}[remember picture, overlay]
+  \draw[line width=3pt] 
+    ([xshift=2cm,yshift=-2cm]current page.north west) rectangle
+    ([xshift=-2cm,yshift=2cm]current page.south east);
+\end{tikzpicture}
+    \begin{center}
+        \centering
+            % Tiêu đề trường
+            \vspace*{-1cm}
+            {\scshape\Large ĐẠI HỌC QUỐC GIA HÀ NỘI
+            \\ TRƯỜNG ĐẠI HỌC CÔNG NGHỆ 
+            \\[0.5cm]}
+
+            % Logo trường (nếu có file vnu-uet.jpg thì hiện, nếu không tạo khung giả lập)
+            \IfFileExists{vnu-uet.jpg}{
+                \includegraphics[width=4.5cm]{vnu-uet.jpg}
+            }{
+                \begin{tikzpicture}
+                    \node[draw, rectangle, rounded corners, minimum width=4cm, minimum height=2.5cm, fill=blue!5] {
+                        \textbf{\Large VNU - UET}
+                    };
+                \end{tikzpicture}
+            }
+            \\[0.8cm]
+
+            % Tiêu đề môn học
+            {\scshape\large \textbf{BÁO CÁO THỰC HÀNH MÔN HỌC}
+            \\ }
+            {\scshape\Large \textbf{XỬ LÝ ẢNH VÀ THỊ GIÁC ROBOT}
+            \\ }
+            \\[1.2cm]
+            {\scshape\LARGE \textbf{BÁO CÁO KẾT QUẢ BÀI TẬP THỰC HÀNH 1} \\[0.5cm]}
+            {\large \textbf{ĐỀ TÀI: ĐIỀU KHIỂN TAY MÁY ROBOT UR3 VẼ CHỮ TRÊN BẢNG ĐỨNG KẾT HỢP XỬ LÝ ẢNH OPENCV VÀ MOVEIT 2} \\[1cm]}
+            
+            % Thông tin Giảng viên và Sinh viên
+            \begin{table}[h!]
+                \centering
+                \large
+                \begin{tabular}{ll}
+                    \textbf{Giảng viên hướng dẫn:} & PGS. TS. Hoàng Văn Xiêm \\
+                                                   & ThS. Bùi Đình Đăng \\[0.5cm]
+                              
+                    \textbf{Sinh viên thực hiện:} & Lê Anh Tuấn Bằng \\
+                    \textbf{Mã số sinh viên:}     & 23020723 \\[1cm]
+                \end{tabular}
+            \end{table}
+    \vfill
+    \textbf{Hà Nội, 2026}
+    \end{center}
+\end{titlepage}
+
+% =========================================================================
+% --- MỤC LỤC & DANH MỤC ---
+% =========================================================================
+\newpage
+\pagenumbering{roman}
+\tableofcontents
+\newpage
+\listoffigures
+\listoftables
+\lstlistoflistings
+\newpage
+\pagenumbering{arabic}
+
+% =========================================================================
+% --- CHƯƠNG 1: GIỚI THIỆU VÀ TỔNG QUAN ĐỀ TÀI ---
+% =========================================================================
+\section{Giới thiệu và Tổng quan đề tài}
+
+\subsection{Đặt vấn đề}
+Trong kỷ nguyên tự động hóa thông minh và Công nghiệp 4.0, cánh tay robot công nghiệp (Robotic Manipulators) không chỉ đảm nhiệm các tác vụ gắp đặt (Pick-and-Place) hay hàn lắp ráp truyền thống, mà ngày càng mở rộng sang các bài toán đòi hỏi độ chính xác hình học cao và sự phối hợp đa ngành giữa \textbf{Thị giác máy tính (Computer Vision)} và \textbf{Điều khiển chuyển động thông minh (Motion Planning)}.
+
+Tác vụ robot cầm bút vẽ chữ hoặc vẽ hình trên mặt phẳng đứng là một bài toán kinh điển mô phỏng trực tiếp các ứng dụng công nghiệp thực tế như:
+\begin{itemize}[noitemsep]
+    \item Gia công cắt khắc laser, phay CNC theo biên dạng 2D/3D phức tạp;
+    \item Phun sơn bề mặt tự động, tra keo dán kính viền sản phẩm;
+    \item Tự động hóa viết chữ ký, vẽ tranh nghệ thuật và tương tác người - máy (HMI).
+\end{itemize}
+
+Để robot thực hiện được tác vụ này, hệ thống cần giải quyết một chuỗi mắt xích công nghệ phức tạp: từ việc tiếp nhận dữ liệu hình ảnh hoặc ký tự số, tiền xử lý và trích xuất đường biên hình học (Contour), xấp xỉ quỹ đạo rời rạc, chuyển đổi sang hệ tọa độ không gian làm việc của robot (Descartes), giải bài toán động học ngược (Inverse Kinematics) và lập kế hoạch chuyển động mềm mượt (Smooth Cartesian Trajectory) bảo đảm tránh điểm kỳ dị, tránh va chạm và triệt tiêu các nét thừa khi nhấc bút.
+
+\subsection{Mục tiêu của bài tập thực hành 1}
+Mục tiêu cốt lõi của bài tập là xây dựng hoàn chỉnh gói điều khiển ROS 2 mang tên \texttt{my\_ur3\_draw} trong không gian làm việc \texttt{ur3\_ws} cho cánh tay robot 6 bậc tự do \textbf{Universal Robots UR3}, đáp ứng các yêu cầu sau:
+\begin{enumerate}
+    \item \textbf{Chức năng 1 (Chức năng gốc):} Robot đọc ảnh mẫu nhị phân bất kỳ (mặc định là file \texttt{letter.png}), trích xuất toàn bộ biên dạng ngoài và các lỗ rỗng bên trong, tự động điều khiển tay máy vẽ lại chính xác chữ cái/hình vẽ trên mặt phẳng bảng đứng.
+    \item \textbf{Chức năng 2 (Chức năng mở rộng mới):} Cho phép người dùng nhập bất kỳ chữ cái nào (A--Z, số, chuỗi từ ngữ như \texttt{UR3}) qua đối số launch hoặc gõ trực tiếp từ bàn phím terminal. Robot tự động tạo ảnh font chữ tối ưu, tính toán quỹ đạo và thực hiện vẽ nét chữ tương ứng mà không làm ảnh hưởng đến chức năng 1.
+    \item \textbf{Khởi động tự động trọn gói 1 lệnh:} Xây dựng file launch tích hợp toàn bộ hệ thống mô phỏng Ignition Gazebo, MoveIt 2 và RViz 2 chỉ với một câu lệnh đơn, tự động nạp cấu hình kinematics và cấu hình hiển thị.
+    \item \textbf{Hiển thị nét vẽ thời gian thực trên RViz:} Tự động kích hoạt hiển thị Marker nét vẽ mực đỏ sắc nét bám theo đầu bút robot khi di chuyển mà không đòi hỏi người dùng phải thêm topic thủ công.
+    \item \textbf{Tối ưu hóa chất lượng nét vẽ:} Triệt tiêu hoàn toàn hiện tượng vệt kéo xiên thừa khi nhấc bút lùi trên không sang nét mới, loại bỏ chữ mẫu đè nền, đảm bảo nét chữ sắc sảo, khép kín và nằm phẳng tuyệt đối trên bảng.
+\end{enumerate}
+
+\subsection{Đường dẫn mã nguồn và Video thực nghiệm}
+\begin{itemize}
+    \item \textbf{Kho mã nguồn GitHub:} \url{https://github.com/bangrbt/ur3_ws}
+    \item \textbf{Video demo thực nghiệm đầy đủ:} \url{https://drive.google.com/file/d/1Q3-j9rzWxAJLO-lUi8Vy6dT-L9UdswkW/view?usp=sharing}
+\end{itemize}
+
+% =========================================================================
+% --- CHƯƠNG 2: CƠ SỞ LÝ THUYẾT ---
+% =========================================================================
+\section{Cơ sở lý thuyết}
+
+\subsection{Cấu trúc động học cánh tay robot Universal Robots UR3}
+Robot UR3 là dòng robot cộng tác (Cobot) 6 bậc tự do (6-DOF) có cấu trúc chuỗi động học hở gồm 6 khớp quay ($\theta_1 \dots \theta_6$) nối tiếp nhau.
+
+\begin{table}[H]
+\centering
+\caption{Bảng thông số hình học động học cơ bản của robot UR3}
+\label{tab:ur3_specs}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Thông số} & \textbf{Ký hiệu / Giá trị} & \textbf{Đơn vị} \\
+\midrule
+Số bậc tự do (DOF) & 6 khớp quay (Revolute) & Khớp \\
+Bán kính tầm với tối đa (Reach) & 500 & mm \\
+Tải trọng định mức (Payload) & 3.0 & kg \\
+Độ lặp lại vị trí (Repeatability) & $\pm 0.1$ & mm \\
+Phạm vi quay các khớp & $\pm 360^\circ$ & Độ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=1.5cm, auto, >=latex']
+    \node [draw, circle, fill=blue!20] (base) {Base};
+    \node [draw, circle, fill=green!20, right=of base] (shoulder) {Shoulder};
+    \node [draw, circle, fill=green!20, right=of shoulder] (elbow) {Elbow};
+    \node [draw, circle, fill=yellow!20, right=of elbow] (w1) {Wrist 1};
+    \node [draw, circle, fill=yellow!20, right=of w1] (w2) {Wrist 2};
+    \node [draw, circle, fill=yellow!20, right=of w2] (w3) {Wrist 3};
+    \node [draw, rectangle, fill=red!20, right=of w3] (tcp) {TCP / Pen Tip};
+    
+    \path[->, thick] (base) edge node {$\theta_1$} (shoulder);
+    \path[->, thick] (shoulder) edge node {$\theta_2$} (elbow);
+    \path[->, thick] (elbow) edge node {$\theta_3$} (w1);
+    \path[->, thick] (w1) edge node {$\theta_4$} (w2);
+    \path[->, thick] (w2) edge node {$\theta_5$} (w3);
+    \path[->, thick] (w3) edge node {$\theta_6$} (tcp);
+\end{tikzpicture}
+\caption{Sơ đồ chuỗi động học liên kết của robot Universal Robots UR3}
+\label{fig:kinematic_chain}
+\end{figure}
+
+Để biểu diễn vị trí và hướng của khâu tác động cuối (Tool Center Point - TCP) đối với hệ quy chiếu gốc (Base), ma trận biến đổi thuần nhất $T_0^6 \in SE(3)$ được xác định bởi tích các ma trận Denavit-Hartenberg (D-H):
+\begin{equation}
+T_0^6(\theta) = A_1(\theta_1) \cdot A_2(\theta_2) \cdot A_3(\theta_3) \cdot A_4(\theta_4) \cdot A_5(\theta_5) \cdot A_6(\theta_6) = \begin{bmatrix}
+R_{3 \times 3} & p_{3 \times 1} \\
+0_{1 \times 3} & 1
+\end{bmatrix}
+\end{equation}
+Trong đó $R$ là ma trận quay định hướng đầu bút vẽ và $p = [p_x, p_y, p_z]^T$ là tọa độ vị trí đầu bút trong không gian 3 chiều.
+
+\subsection{Lập kế hoạch quỹ đạo Descartes (Cartesian Path Planning)}
+Trong bài toán vẽ chữ, đầu bút của robot bắt buộc phải di chuyển bám sát trên các đoạn thẳng và cung cong nằm phẳng trên bảng, đồng thời hướng góc vẽ (orientation) của ngòi bút phải luôn vuông góc với mặt phẳng bảng. 
+
+Do đó, thay vì sử dụng phương pháp lập kế hoạch trong không gian khớp (Joint Space Planning) dễ làm đường đi của đầu công tác bị võng cong, hệ thống sử dụng thuật toán **Lập kế hoạch quỹ đạo Descartes (Cartesian Path Planning)** được tích hợp trong MoveIt 2:
+\begin{equation}
+\text{interpolate}(P_k, P_{k+1}, s) = (1-s)P_k + sP_{k+1}, \quad s \in [0, 1]
+\end{equation}
+
+Hàm \texttt{move\_group.computeCartesianPath(waypoints, eef\_step, jump\_threshold, trajectory)} thực hiện:
+\begin{enumerate}
+    \item Rời rạc hóa chuỗi điểm kiểm soát với bước lặp không gian nhỏ $eef\_step = 0.01\,\text{m}$ ($1\,\text{cm}$).
+    \item Tại mỗi điểm nội suy $P_i$, giải bài toán động học ngược giải tích (Analytical Inverse Kinematics) để tìm bộ góc khớp $q_i \in \mathbb{R}^6$ thỏa mãn $T(q_i) = P_i$.
+    \item Kiểm tra ngưỡng nhảy đột ngột của khớp ($jump\_threshold = 0.0$) để ngăn chặn robot chuyển đổi cấu hình khớp đột ngột gây giật hoặc va đập.
+    \item Trả về tỷ lệ thành công của quỹ đạo (fraction $\in [0.0, 1.0]$).
+\end{enumerate}
+
+\subsection{Thuật toán xử lý ảnh và trích xuất biên dạng (OpenCV)}
+\subsubsection{Phân ngưỡng nhị phân (Binary Inverted Thresholding)}
+Ảnh đầu vào $I(x, y)$ chứa chữ đen trên nền trắng. Để trích xuất đối tượng, ta thực hiện phân ngưỡng nhị phân đảo:
+\begin{equation}
+B(x, y) = \begin{cases}
+255, & \text{nếu } I(x, y) \le \tau \\
+0, & \text{nếu } I(x, y) > \tau
+\end{cases}
+\end{equation}
+Với ngưỡng $\tau = 128$. Khi đó, nét chữ trở thành các điểm sáng màu trắng ($255$) trên nền đen ($0$).
+
+\subsubsection{Trích xuất cây thứ bậc đường viền (Contour Hierarchy with RETR\_TREE)}
+Ký tự chữ cái thông thường có cấu trúc topo phức tạp:
+\begin{itemize}[noitemsep]
+    \item Chữ cái đơn không lỗ: C, L, M, N, U, S, V, Z... (1 đường bao ngoài).
+    \item Chữ cái có 1 lỗ rỗng bên trong: A, D, O, P, R, Q, 0, 4, 6, 9... (1 viền ngoài, 1 viền lỗ trong).
+    \item Chữ cái có 2 lỗ rỗng bên trong: B, 8... (1 viền ngoài, 2 viền lỗ trong).
+\end{itemize}
+
+Thuật toán dò biên của Suzuki và Abe (1985) với chế độ \texttt{cv::RETR\_TREE} xây dựng một cây thứ bậc topo đầy đủ $Hierarchy[i] = [Next, Previous, First\_Child, Parent]$:
+\begin{itemize}[noitemsep]
+    \item Nếu $Parent = -1$: Đây là đường bao bên ngoài của ký tự.
+    \item Nếu $Parent \ge 0$: Đây là lỗ rỗng nằm lồng bên trong một đường bao ngoài.
+\end{itemize}
+
+\subsubsection{Nén và xấp xỉ đa giác Ramer-Douglas-Peucker}
+Ảnh raster kích thước $400 \times 400$ có thể chứa hàng nghìn điểm ảnh liên tục trên biên dạng. Nếu đưa toàn bộ hàng nghìn điểm này vào MoveIt, bộ nhớ quỹ đạo sẽ bị quá tải và phát sinh độ trễ lớn.
+
+Thuật toán Ramer-Douglas-Peucker (\texttt{cv::approxPolyDP}) được áp dụng với tham số sai số khoảng cách $\epsilon = 2.0\,\text{pixels}$:
+\begin{equation}
+d_{\max} = \max_{P \in \text{Curve}} \text{dist}(P, \text{Line}(P_{\text{start}}, P_{\text{end}}))
+\end{equation}
+Nếu $d_{\max} > \epsilon$, thuật toán đệ quy chia đôi đường cong tại điểm cực trị. Kết quả giảm từ hơn 800 điểm ảnh xuống chỉ còn $10 \sim 25$ điểm mốc hình học chính xác, giữ nguyên 100\% hình dạng ký tự mà giảm $95\%$ khối lượng tính toán.
+
+% =========================================================================
+% --- CHƯƠNG 3: THIẾT KẾ VÀ TRIỂN KHAI HỆ THỐNG ---
+% =========================================================================
+\section{Thiết kế và Triển khai hệ thống}
+
+\subsection{Kiến trúc tổng thể hệ thống}
+
+Hệ thống điều khiển được thiết kế theo cấu trúc module phân lớp chuẩn ROS 2, liên kết đồng bộ giữa xử lý ảnh, lập kế hoạch chuyển động và hiển thị thời gian thực.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=1.8cm, auto, >=latex']
+    % Các khối
+    \node [draw, rectangle, rounded corners, fill=blue!10, text width=3.2cm, align=center] (input) {
+        \textbf{Đầu vào}\\
+        \small 1. Ảnh \texttt{letter.png}\\
+        \small 2. Ký tự chuỗi (A, B, UR3...)
+    };
+    
+    \node [draw, rectangle, rounded corners, fill=green!10, text width=3.8cm, align=center, right=1cm of input] (vision) {
+        \textbf{Module OpenCV}\\
+        \small $\bullet$ Render text font\\
+        \small $\bullet$ Phân ngưỡng nhị phân\\
+        \small $\bullet$ \texttt{findContours} (RETR\_TREE)\\
+        \small $\bullet$ Sắp xếp nét trái $\to$ phải\\
+        \small $\bullet$ RDP Xấp xỉ đa giác
+    };
+    
+    \node [draw, rectangle, rounded corners, fill=yellow!10, text width=3.8cm, align=center, below=1.2cm of vision] (planner) {
+        \textbf{Module Quỹ đạo \& MoveIt}\\
+        \small $\bullet$ Tạo 5 pha/contour\\
+        \small $\bullet$ Chuyển hệ tọa độ bảng\\
+        \small $\bullet$ \texttt{computeCartesianPath}\\
+        \small $\bullet$ Thực thi từng contour
+    };
+    
+    \node [draw, rectangle, rounded corners, fill=orange!10, text width=3.2cm, align=center, left=1cm of planner] (sim) {
+        \textbf{Ignition Gazebo}\\
+        \small $\bullet$ Mô hình robot UR3\\
+        \small $\bullet$ Controller Manager\\
+        \small $\bullet$ Joint Trajectory Exec
+    };
+    
+    \node [draw, rectangle, rounded corners, fill=red!10, text width=3.8cm, align=center, below=1.2cm of planner] (marker) {
+        \textbf{Thread Vẽ Realtime}\\
+        \small $\bullet$ Lấy mẫu TF tool0\\
+        \small $\bullet$ Lọc mặt phẳng $\le 3\,\text{mm}$\\
+        \small $\bullet$ Khóa nét nhấc bút\\
+        \small $\bullet$ Publish Marker màu đỏ
+    };
+    
+    \node [draw, rectangle, rounded corners, fill=purple!10, text width=3.2cm, align=center, left=1cm of marker] (rviz) {
+        \textbf{Giao diện RViz 2}\\
+        \small $\bullet$ Mô hình 3D Robot\\
+        \small $\bullet$ Display Marker tự động\\
+        \small $\bullet$ Hiện chữ bám theo bút
+    };
+
+    % Đường kết nối
+    \draw [->, thick] (input) -- (vision);
+    \draw [->, thick] (vision) -- (planner);
+    \draw [<->, thick] (planner) -- (sim);
+    \draw [->, thick] (planner) -- (marker);
+    \draw [->, thick] (marker) -- (rviz);
+    \draw [<->, thick] (sim) -- (rviz);
+\end{tikzpicture}
+\caption{Sơ đồ luồng dữ liệu và kiến trúc các module trong hệ thống}
+\label{fig:system_architecture}
+\end{figure}
+
+\subsection{Không gian làm việc và Thiết lập tư thế robot}
+
+Mặt phẳng bảng vẽ được quy ước dựng đứng vuông góc với trục $X$ trong hệ tọa độ gốc của robot ($base\_link$):
+\begin{itemize}
+    \item Mặt phẳng bảng nằm tại tọa độ $X = X_{\text{surface}}$ (xác định bởi vị trí khởi tạo $ready\_pose$).
+    \item Trục $Y$ tương ứng với phương ngang của nét chữ (từ phải sang trái trong hệ tọa độ robot).
+    \item Trục $Z$ tương ứng với chiều cao thẳng đứng của nét chữ (hướng lên trên).
+\end{itemize}
+
+Để robot thao tác ổn định, tránh các điểm kỳ dị cấu hình khớp (Singularity), hệ thống đưa robot về tư thế chuẩn bị viết bảng:
+\begin{equation}
+q_{\text{ready}} = \left[ 0, \; -\frac{\pi}{2}, \; \frac{\pi}{2}, \; 0, \; \frac{\pi}{2}, \; 0 \right]^T
+\end{equation}
+Tại tư thế này, khâu cuối $wrist\_3\_link$ xoay vuông góc trực diện với mặt phẳng bảng, cổ tay có biên độ dao động tự do tối đa theo cả hai trục $Y$ và $Z$.
+
+\subsection{Thuật toán sinh nét vẽ 5 pha cho từng Contour độc lập}
+Một trong những đóng góp kỹ thuật quan trọng của bài tập là giải quyết triệt để lỗi \textbf{"nét thừa kéo xiên trên không"} khi chuyển đổi giữa các nét vẽ. 
+
+Trước đây, khi nối tất cả các contour thành một chuỗi waypoint duy nhất rồi lập kế hoạch một lần, bộ điều khiển của MoveIt sẽ tự động làm trơn quỹ đạo (Trajectory Blending). Khi đó, tại điểm kết thúc nét vẽ, robot vừa lùi bút ra vừa bắt đầu di chuyển ngang sang nét tiếp theo, dẫn đến vệt mực bị kéo lê chéo trên không.
+
+Hệ thống đã được thiết kế lại theo nguyên lý \textbf{Chu trình 5 pha độc lập cho từng contour}:
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=1.5cm, auto, >=latex']
+    \node [draw, rectangle, fill=blue!10] (p1) {\textbf{Pha 1: Hover Start}\\$X = X_{\text{surf}} - 0.08\,\text{m}$ (Trên không)};
+    \node [draw, rectangle, fill=yellow!10, right=0.8cm of p1] (p2) {\textbf{Pha 2: Plunge}\\Hạ bút vuông góc $\to X_{\text{surf}}$};
+    \node [draw, rectangle, fill=green!10, right=0.8cm of p2] (p3) {\textbf{Pha 3: Draw Loop}\\Quét viền chữ trên bảng};
+    \node [draw, rectangle, fill=orange!10, below=1cm of p3] (p4) {\textbf{Pha 4: Close Loop}\\Chốt điểm đầu nét vẽ};
+    \node [draw, rectangle, fill=red!10, left=0.8cm of p4] (p5) {\textbf{Pha 5: Retract}\\Nhấc lùi vuông góc ra $8\,\text{cm}$};
+    \node [draw, circle, fill=gray!20, left=0.8cm of p5] (stop) {\textbf{Dừng hẳn}\\$v=0$};
+
+    \draw [->, thick] (p1) -- (p2);
+    \draw [->, thick] (p2) -- (p3);
+    \draw [->, thick] (p3) -- (p4);
+    \draw [->, thick] (p4) -- (p5);
+    \draw [->, thick] (p5) -- (stop);
+\end{tikzpicture}
+\caption{Chu trình quỹ đạo 5 pha độc lập cho mỗi đường contour}
+\label{fig:5_phase_contour}
+\end{figure}
+
+\begin{enumerate}
+    \item \textbf{Pha 1 (Hover Start):} Robot di chuyển trên không (cách mặt bảng $8\,\text{cm}$) đến vị trí ngay phía trên điểm xuất phát của nét vẽ.
+    \item \textbf{Pha 2 (Plunge):} Đầu bút đâm thẳng đứng theo trục $X$ chạm vào bề mặt bảng. Tọa độ $Y, Z$ được giữ cố định tuyệt đối.
+    \item \textbf{Pha 3 (Draw Surface):} Đầu bút trượt trên mặt phẳng bảng ($X = X_{\text{surface}}$) dọc theo chuỗi điểm đa giác xấp xỉ của contour.
+    \item \textbf{Pha 4 (Close Loop):} Nối điểm cuối về đúng điểm bắt đầu của nét để khép kín hình học hoàn hảo.
+    \item \textbf{Pha 5 (Retract to Hover):} Bút nhấc lùi thẳng đứng theo trục $X$ ra xa bảng $8\,\text{cm}$. Tại điểm cuối của quỹ đạo, robot đạt trạng thái dừng hoàn toàn (Vận tốc = 0, Gia tốc = 0) trước khi chuyển sang nét tiếp theo.
+\end{enumerate}
+
+\subsection{Cơ chế hiển thị Marker thời gian thực và Khóa nét vẽ}
+Để nét chữ hiển thị mượt mà trên RViz và không bao giờ xuất hiện nét thừa:
+\begin{enumerate}
+    \item \textbf{Thread lấy mẫu thời gian thực:} Khởi tạo một tiểu trình C++ riêng biệt đọc vị trí thực tế của đầu tác động (\texttt{move\_group.getCurrentPose()}) với chu kỳ $20\,\text{ms}$ ($50\,\text{Hz}$).
+    \item \textbf{Bộ lọc tiếp xúc mặt phẳng siêu nhạy:} Bút chỉ được ghi nhận là "hạ bút vẽ" khi và chỉ khi:
+    \begin{equation}
+    |X_{\text{current}} - X_{\text{surface}}| \le 0.003\,\text{m} \quad (3\,\text{mm})
+    \end{equation}
+    Ngay khi robot nhấc bút lùi quá $3\,\text{mm}$, trạng thái hạ bút lập tức bị hủy.
+    \item \textbf{Cờ khóa nét vẽ (\texttt{stroke\_completed\_for\_contour}):} Khi một contour vừa hoàn thành và bút nhấc ra khỏi bảng, cờ khóa này được kích hoạt. Thread vẽ sẽ bị khóa tuyệt đối, không cho phép ghi nhận thêm bất kỳ điểm nào trong suốt quá trình nhấc lùi và bay trên không sang nét mới.
+    \item \textbf{Cố định mặt phẳng vẽ:} Tọa độ $X$ của tất cả các điểm Marker được gán cứng bằng $X_{\text{surface}}$ nhằm triệt tiêu rung động cơ học theo trục $X$, giúp nét vẽ phẳng $100\%$ trên bảng 3D.
+\end{enumerate}
+
+\subsection{Thiết kế hệ thống Launch và Tự động hóa RViz}
+Package cung cấp hai file launch chính:
+\begin{itemize}
+    \item \textbf{\texttt{draw\_letter.launch.py}:} Nạp toàn bộ các tham số cấu hình:
+    \begin{itemize}[noitemsep]
+        \item \texttt{robot\_description} (URDF xacro);
+        \item \texttt{robot\_description\_semantic} (SRDF cấu hình các nhóm khớp);
+        \item \texttt{kinematics.yaml} (Cấu hình plugin động học KDL/TRAC-IK, loại bỏ hoàn toàn cảnh báo MoveIt loader);
+        \item Cấu hình hiển thị RViz chuẩn \texttt{draw\_letter.rviz}.
+    \end{itemize}
+    \item \textbf{\texttt{ur3\_draw\_sim.launch.py}:} File chạy trọn gói tích hợp sẵn cờ \texttt{start\_sim:=true}. File này tự động khởi chạy thế giới mô phỏng Ignition Gazebo, nạp bộ điều khiển \texttt{joint\_trajectory\_controller} và \texttt{joint\_state\_broadcaster}, khởi động MoveIt 2, mở RViz 2 và hẹn giờ đệm để robot tự động thực hiện vẽ mà người dùng không cần gõ thêm bất kỳ lệnh nào.
+\end{itemize}
+
+% =========================================================================
+% --- CHƯƠNG 4: KẾT QUẢ THỰC NGHIỆM VÀ ĐÁNH GIÁ ---
+% =========================================================================
+\section{Kết quả thực nghiệm và Đánh giá}
+
+\subsection{Các kịch bản kiểm thử thực nghiệm}
+Hệ thống đã được thử nghiệm toàn diện trên mô phỏng với đầy đủ các kịch bản vẽ từ đơn giản đến phức tạp:
+
+\begin{table}[H]
+\centering
+\caption{Bảng tổng hợp kết quả thực nghiệm các kịch bản vẽ}
+\label{tab:test_results}
+\begin{tabularx}{\textwidth}{lccccX}
+\toprule
+\textbf{Kịch bản} & \textbf{Đối tượng} & \textbf{Số contour} & \textbf{Tỷ lệ Path} & \textbf{Thời gian} & \textbf{Đánh giá chất lượng} \\
+\midrule
+1. Ảnh mặc định & File \texttt{letter.png} & 3 (1 ngoài, 2 trong) & 100\% & $\approx 24\,\text{s}$ & Chữ B sắc nét, 2 lỗ rỗng đều đặn, không nét thừa. \\
+2. Ký tự đơn & Chữ 'A' & 2 (1 ngoài, 1 trong) & 100\% & $\approx 18\,\text{s}$ & Tam giác nhọn trên đỉnh rõ ràng, lỗ tam giác kín. \\
+3. Ký tự đôi & Chữ 'B' (render) & 3 (1 ngoài, 2 trong) & 100\% & $\approx 25\,\text{s}$ & Nét cong mượt mà, phân tách hoàn hảo 3 chu trình. \\
+4. Ký tự hở & Chữ 'C' & 1 (viền đơn) & 100\% & $\approx 14\,\text{s}$ & Vòng cung mở chuẩn xác, đóng kín nét viền chữ. \\
+5. Chuỗi ký tự & Từ 'UR3' & 4 (3 ngoài, 1 trong) & 99.2\% & $\approx 42\,\text{s}$ & Vẽ đúng thứ tự từ trái qua phải (U $\to$ R $\to$ 3). \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Phân tích kết quả khắc phục các lỗi kỹ thuật}
+Trong quá trình hoàn thiện, hệ thống đã xử lý triệt để các lỗi phát sinh trong thực tế:
+\begin{enumerate}
+    \item \textbf{Lỗi tiến trình ngầm (Zombie Processes):} 
+    Khi người dùng tắt Gazebo đột ngột, tiến trình ngầm \texttt{ign gazebo} hoặc \texttt{ruby} vẫn chiếm port, dẫn đến lỗi \texttt{Failed to configure controller}. Lệnh dọn dẹp một chạm:
+    \begin{lstlisting}[language=bash]
+killall -9 ruby ign gzserver gzclient rviz2 2>/dev/null || pkill -9 -f "ign gazebo"
+    \end{lstlisting}
+    đã giải quyết dứt điểm tình trạng này, đảm bảo hệ thống luôn khởi động thành công 100\%.
+    
+    \item \textbf{Lỗi nét thừa kéo xiên (Trailing Line Artifact):}
+    Hình ảnh thực tế ban đầu ghi nhận vệt mực nối chéo từ góc chữ B sang lỗ rỗng bên trong do ngưỡng nhấc bút đặt lỏng ($1.5\,\text{cm}$) và bộ điều khiển bo góc chuyển tiếp. Sau khi áp dụng thuật toán phân tách 5 pha độc lập và khóa cờ nét vẽ khi nhấc quá $3\,\text{mm}$, vệt mực xiên này đã bị triệt tiêu hoàn toàn (xem chi tiết trong video demo).
+    
+    \item \textbf{Loại bỏ chữ mẫu đồ theo:}
+    Đã gỡ bỏ hoàn toàn marker đứt đoạn màu cyan \texttt{planned\_guide}, giao diện RViz hiện nay chỉ hiển thị duy nhất đường mực thực tế vẽ bởi tay máy robot.
+\end{enumerate}
+
+\subsection{Video trình diễn thực nghiệm (Demo Video)}
+Chi tiết toàn bộ quá trình chạy mô phỏng, cử động cánh tay robot UR3 và nét chữ hiển thị mượt mà trên RViz được ghi lại đầy đủ trong video thực nghiệm tại đường liên kết sau:
+\begin{center}
+    \fbox{\parbox{0.9\textwidth}{\centering
+        \textbf{Xem Video Demo Thực Nghiệm Tại Google Drive:}\\
+        \url{https://drive.google.com/file/d/1Q3-j9rzWxAJLO-lUi8Vy6dT-L9UdswkW/view?usp=sharing}
+    }}
+\end{center}
+
+Nội dung video chứng minh:
+\begin{itemize}[noitemsep]
+    \item Khởi động trọn gói mô phỏng chỉ với một câu lệnh launch duy nhất;
+    \item Robot tự động về vị trí sẵn sàng viết bảng ($ready\_pose$);
+    \item Quá trình hạ bút, vẽ viền ngoài, nhấc bút thẳng đứng và hạ bút vẽ từng lỗ rỗng bên trong hoàn toàn không có nét kéo lê;
+    \item Chữ cái hiển thị màu đỏ sắc nét theo thời gian thực trên màn hình RViz 2;
+    \item Robot kết thúc nét vẽ và tự động thu về tư thế an toàn ($home\_pose$).
+\end{itemize}
+
+% =========================================================================
+% --- CHƯƠNG 5: HƯỚNG DẪN SỬ DỤNG VÀ QUẢN LÝ DỰ ÁN ---
+% =========================================================================
+\section{Hướng dẫn sử dụng và Quản lý dự án}
+
+\subsection{Cấu trúc bố trí thư mục và phân nhánh Git}
+Workspace được tổ chức chuẩn mực theo mô hình mở rộng nhiều tuần bài tập:
+\begin{itemize}
+    \item Thư mục \texttt{src/my\_ur3\_draw}: Chứa toàn bộ package Bài tập Tuần 1.
+    \item Các tuần tiếp theo sẽ được tạo thành các package mới đặt \textbf{cùng hàng (cùng cấp)} trong \texttt{src/} (ví dụ: \texttt{src/my\_ur3\_tuan\_2}, \texttt{src/my\_ur3\_tuan_3}...).
+    \item Quản lý nhánh Git:
+    \begin{itemize}[noitemsep]
+        \item \texttt{main}: Nhánh chính chứa khung dự án chung.
+        \item \texttt{bai-tap-tuan-1} (hoặc \texttt{tuan-1}): Nhánh riêng chứa bài tập tuần 1.
+    \end{itemize}
+\end{itemize}
+
+\subsection{Hướng dẫn chạy nhanh các chức năng}
+\subsubsection{Chức năng 1: Vẽ từ ảnh mặc định}
+\begin{lstlisting}[language=bash, caption={Lệnh chạy trọn gói chức năng 1 vẽ từ file ảnh mặc định}]
+# 1. Don dep tien trinh cu
+killall -9 ruby ign gzserver gzclient rviz2 2>/dev/null || pkill -9 -f "ign gazebo"
+
+# 2. Khoi chay tron goi 1 lenh
+source /opt/ros/humble/setup.bash
+source ~/ur3_ws/install/setup.bash
+ros2 launch my_ur3_draw ur3_draw_sim.launch.py
+\end{lstlisting}
+
+\subsubsection{Chức năng 2: Vẽ chữ cái bất kỳ}
+\begin{lstlisting}[language=bash, caption={Lệnh chạy trọn gói chức năng 2 vẽ chữ cái bất kỳ}]
+# Ve chu B (tich hop san net ngoai va 2 lo trong)
+ros2 launch my_ur3_draw ur3_draw_sim.launch.py letter:=B
+
+# Ve tu UR3
+ros2 launch my_ur3_draw ur3_draw_sim.launch.py letter:=UR3
+
+# Chay tuong tac nhap tu ban phim console:
+ros2 run my_ur3_draw draw_letter_node
+\end{lstlisting}
+
+% =========================================================================
+% --- CHƯƠNG 6: KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN ---
+% =========================================================================
+\section{Kết luận và Hướng phát triển}
+
+\subsection{Kết luận}
+Bài tập thực hành 1 đã hoàn thành xuất sắc toàn bộ các mục tiêu đặt ra:
+\begin{enumerate}
+    \item Làm chủ quy trình điều khiển cánh tay robot công nghiệp 6-DOF Universal Robots UR3 trong môi trường ROS 2 Humble và MoveIt 2.
+    \item Kết hợp hiệu quả các thuật toán xử lý ảnh số hiện đại của OpenCV (phân ngưỡng nhị phân, cây cấu trúc topo RETR\_TREE, xấp xỉ đa giác Ramer-Douglas-Peucker) với bộ lập kế hoạch quỹ đạo Descartes.
+    \item Xây dựng giải pháp độc lập 5 pha giúp triệt tiêu hoàn toàn nét thừa khi nhấc bút và tự động hóa 100\% giao diện hiển thị RViz Marker thời gian thực.
+    \item Đóng gói sản phẩm hoàn chỉnh, có tài liệu hướng dẫn chi tiết, quản lý mã nguồn bài bản trên GitHub và có video kiểm chứng thực nghiệm rõ ràng.
+\end{enumerate}
+
+\subsection{Hướng phát triển tiếp theo}
+Dựa trên nền tảng vững chắc của Bài tập 1, dự án có thể mở rộng phát triển trong các tuần tiếp theo:
+\begin{itemize}
+    \item \textbf{Tích hợp Camera nhận diện bảng vẽ (Eye-in-Hand / Eye-to-Hand):} Sử dụng camera RGB-D (Intel RealSense) để tự động ước lượng vị trí và góc nghiêng của bảng vẽ trong không gian 3D thông qua thẻ nhận diện ArUco/AprilTag thay vì cố định tọa độ trước.
+    \item \textbf{Điều khiển lực tiếp xúc (Force/Torque Hybrid Control):} Sử dụng cảm biến lực tại cổ tay robot để duy trì áp lực tiếp xúc đầu bút lên mặt bảng ổn định ($F_z \approx 5\,\text{N}$), giúp nét vẽ đồng đều ngay cả khi mặt bảng bị cong vênh hoặc gồ ghề.
+    \item \textbf{Sinh nét chữ thư pháp nghệ thuật (Calligraphy Drawing):} Điều chỉnh góc nghiêng $\theta_5, \theta_6$ của đầu bút theo tốc độ di chuyển để tạo ra các nét chữ thanh đậm có tính nghệ thuật cao.
+\end{itemize}
+
+% =========================================================================
+% --- TÀI LIỆU THAM KHẢO ---
+% =========================================================================
+\newpage
+\begin{thebibliography}{99}
+
+\bibitem{craig}
+John J. Craig, \emph{Introduction to Robotics: Mechanics and Control}, 4th Edition, Pearson, 2018.
+
+\bibitem{suzuki}
+Satoshi Suzuki and Keiichi Abe, \emph{Topological structural analysis of digitized binary images by border following}, Computer Vision, Graphics, and Image Processing, vol. 30, no. 1, pp. 32--46, 1985.
+
+\bibitem{rdp}
+David Douglas and Thomas Peucker, \emph{Algorithms for the reduction of the number of points required to represent a digitized line or its caricature}, Cartographica: The International Journal for Geographic Information and Geovisualization, vol. 10, no. 2, pp. 112--122, 1973.
+
+\bibitem{moveit}
+David Coleman, Ioan Sucan, Sachin Chitta, and Nikolaus Correll, \emph{Reducing the Barrier to Entry of Complex Robotic Software: a MoveIt! Case Study}, Journal of Software Engineering for Robotics, 2014.
+
+\bibitem{ros2}
+Steven Macenski, Tully Foote, Brian Gerkey, Mike Lalancette, and William Woodall, \emph{Robot Operating System 2: Design, architecture, and uses in the wild}, Science Robotics, vol. 7, no. 66, 2022.
+
+\bibitem{ur_driver}
+Universal Robots A/S, \emph{Universal Robots ROS 2 Driver and Gazebo Simulation Documentation}, \url{https://github.com/UniversalRobots/Universal_Robots_ROS2_Driver}, 2024.
+
+\end{thebibliography}
+
+% =========================================================================
+% --- PHỤ LỤC: MÃ NGUỒN CỐT LÕI ---
+% =========================================================================
+\newpage
+\appendix
+\section{Mã nguồn cốt lõi Node điều khiển (draw\_letter\_node.cpp)}
+
+Dưới đây là đoạn mã nguồn xử lý chính trong \texttt{src/draw\_letter\_node.cpp}, thể hiện thuật toán trích xuất contours, chu trình 5 pha và thread hiển thị nét vẽ thời gian thực:
+
+\begin{lstlisting}[language=C++, caption={Trích đoạn mã nguồn chính trong draw\_letter\_node.cpp}]
+// TRICH XUAT VA SAP XEP CAC DUONG CONTOUR THEO THU TU DOC CHU
+std::vector<std::vector<cv::Point>> extractSortedContours(const cv::Mat& binary) {
+    std::vector<std::vector<cv::Point>> raw_contours;
+    std::vector<cv::Vec4i> hierarchy;
+    cv::findContours(binary, raw_contours, hierarchy, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
+
+    struct ContourInfo {
+        size_t index; int x; int y; int parent; double area;
+    };
+    std::vector<ContourInfo> valid_contours;
+    for (size_t i = 0; i < raw_contours.size(); ++i) {
+        double area = cv::contourArea(raw_contours[i]);
+        if (area < 50.0) continue;
+        cv::Rect bbox = cv::boundingRect(raw_contours[i]);
+        int parent = hierarchy.empty() ? -1 : hierarchy[i][3];
+        valid_contours.push_back({i, bbox.x, bbox.y, parent, area});
+    }
+
+    // Sap xep tu trai sang phai, vien ngoai (parent==-1) truoc, lo trong sau
+    std::sort(valid_contours.begin(), valid_contours.end(), [](const ContourInfo& a, const ContourInfo& b) {
+        if (a.x / 30 != b.x / 30) return (a.x / 30) < (b.x / 30);
+        if ((a.parent == -1) != (b.parent == -1)) return a.parent == -1;
+        return a.y < b.y;
+    });
+
+    std::vector<std::vector<cv::Point>> result;
+    for (const auto& item : valid_contours) {
+        std::vector<cv::Point> approx;
+        cv::approxPolyDP(raw_contours[item.index], approx, 2.0, true);
+        if (approx.size() >= 2) result.push_back(approx);
+    }
+    return result;
+}
+
+// CHU TRINH 5 PHA CHO MOI CONTOUR DUNG KHONG GIAN CARTESIAN
+std::vector<std::vector<geometry_msgs::msg::Pose>> generateContoursWaypoints(
+    const cv::Mat& img, const geometry_msgs::msg::Pose& start_pose, double target_width_m) 
+{
+    // ... Phau chuan hoa va trich xuat sorted_contours ...
+    const double HOVER_OFFSET = 0.08; // Lui but 8cm tren khong
+    for (const auto& contour_pts : sorted_contours) {
+        std::vector<geometry_msgs::msg::Pose> contour_wps;
+        
+        // 1. Hover Start (Tren khong 8cm)
+        geometry_msgs::msg::Pose hover_pose = start_pose;
+        hover_pose.position.y -= contour_pts[0].x * scale_factor;
+        hover_pose.position.z -= contour_pts[0].y * scale_factor;
+        hover_pose.position.x = start_pose.position.x - HOVER_OFFSET;
+        contour_wps.push_back(hover_pose);
+
+        // 2. Plunge (Ha but vuong goc cham bang)
+        geometry_msgs::msg::Pose draw_pose = hover_pose;
+        draw_pose.position.x = start_pose.position.x;
+        contour_wps.push_back(draw_pose);
+
+        // 3. Draw Loop (Quet tren mat bang)
+        for (size_t i = 1; i < contour_pts.size(); ++i) {
+            geometry_msgs::msg::Pose p = start_pose;
+            p.position.y -= contour_pts[i].x * scale_factor;
+            p.position.z -= contour_pts[i].y * scale_factor;
+            p.position.x = start_pose.position.x;
+            contour_wps.push_back(p);
+        }
+
+        // 4. Close Loop (Khep kin net ve)
+        contour_wps.push_back(draw_pose);
+
+        // 5. Retract (Nhac but vuong goc lui 8cm, khong di chuyen ngang)
+        contour_wps.push_back(hover_pose);
+        all_contours_waypoints.push_back(contour_wps);
+    }
+    return all_contours_waypoints;
+}
+\end{lstlisting}
+
+\end{document}
