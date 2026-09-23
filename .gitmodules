@@ -6,3 +6,4 @@
 	path = src/Universal_Robots_ROS2_GZ_Simulation
 	url = https://github.com/UniversalRobots/Universal_Robots_ROS2_GZ_Simulation.git
 	branch = humble
+

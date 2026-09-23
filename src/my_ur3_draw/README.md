@@ -27,6 +27,12 @@ Package hỗ trợ đầy đủ 2 chức năng chính:
 
 ## 1. Yêu Cầu Hệ Thống & Biên Dịch
 
+### 1.1. Lệnh Dọn Dẹp Tiến Trình Treo (Khuyên dùng chạy trước mỗi lần mô phỏng):
+```bash
+killall -9 ruby ign gzserver gzclient rviz2 2>/dev/null || pkill -9 -f "ign gazebo"
+```
+
+### 1.2. Biên Dịch Workspace:
 Mở Terminal và điều hướng về workspace `ur3_ws`:
 ```bash
 cd ~/ur3_ws
@@ -44,6 +50,8 @@ source install/setup.bash
 ### 2.1. Cách 1: Khởi động trọn gói 1 lệnh (Gazebo + MoveIt + RViz + Vẽ)
 Sử dụng file launch `ur3_draw_sim.launch.py`. Lệnh này sẽ tự động bật toàn bộ hệ thống mô phỏng, chờ các bộ điều khiển sẵn sàng và điều khiển robot vẽ ảnh mặc định:
 ```bash
+killall -9 ruby ign gzserver gzclient rviz2 2>/dev/null || pkill -9 -f "ign gazebo"
+source /opt/ros/humble/setup.bash
 source ~/ur3_ws/install/setup.bash
 ros2 launch my_ur3_draw ur3_draw_sim.launch.py
 ```
