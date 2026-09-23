@@ -189,40 +189,46 @@ Robot UR3 là dòng robot cộng tác (Cobot) 6 bậc tự do (6-DOF) có cấu 
 
 \begin{table}[H]
 \centering
+\renewcommand{\arraystretch}{1.2}
 \caption{Bảng thông số hình học động học cơ bản của robot UR3}
 \label{tab:ur3_specs}
-\begin{tabular}{lcc}
+\begin{tabular}{llc}
 \toprule
-\textbf{Thông số} & \textbf{Ký hiệu / Giá trị} & \textbf{Đơn vị} \\
+\textbf{Thông số kỹ thuật} & \textbf{Giá trị thiết kế} & \textbf{Đơn vị} \\
 \midrule
-Số bậc tự do (DOF) & 6 khớp quay (Revolute) & Khớp \\
-Bán kính tầm với tối đa (Reach) & 500 & mm \\
+Số bậc tự do (DOF) & 6 khớp quay (Revolute joints) & Khớp \\
+Bán kính tầm với tối đa (Max Reach) & 500 & mm \\
 Tải trọng định mức (Payload) & 3.0 & kg \\
 Độ lặp lại vị trí (Repeatability) & $\pm 0.1$ & mm \\
-Phạm vi quay các khớp & $\pm 360^\circ$ & Độ \\
+Phạm vi quay các khớp $\theta_1 \dots \theta_6$ & $\pm 360^\circ$ & Độ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[node distance=1.5cm, auto, >=latex']
-    \node [draw, circle, fill=blue!20] (base) {Base};
-    \node [draw, circle, fill=green!20, right=of base] (shoulder) {Shoulder};
-    \node [draw, circle, fill=green!20, right=of shoulder] (elbow) {Elbow};
-    \node [draw, circle, fill=yellow!20, right=of elbow] (w1) {Wrist 1};
-    \node [draw, circle, fill=yellow!20, right=of w1] (w2) {Wrist 2};
-    \node [draw, circle, fill=yellow!20, right=of w2] (w3) {Wrist 3};
-    \node [draw, rectangle, fill=red!20, right=of w3] (tcp) {TCP / Pen Tip};
+\resizebox{0.95\textwidth}{!}{
+\begin{tikzpicture}[>=latex', font=\small]
+    \tikzstyle{joint} = [draw, circle, minimum size=1.1cm, inner sep=1pt, align=center, thick]
+    \tikzstyle{tcp} = [draw, rectangle, rounded corners, minimum height=1.1cm, inner sep=4pt, align=center, fill=red!20, thick]
+
+    \node [joint, fill=blue!20] (base) at (0,0) {\textbf{Base}};
+    \node [joint, fill=green!25] (shoulder) at (2.1,0) {\textbf{Shoulder}};
+    \node [joint, fill=green!25] (elbow) at (4.2,0) {\textbf{Elbow}};
+    \node [joint, fill=yellow!25] (w1) at (6.3,0) {\textbf{Wrist 1}};
+    \node [joint, fill=yellow!25] (w2) at (8.4,0) {\textbf{Wrist 2}};
+    \node [joint, fill=yellow!25] (w3) at (10.5,0) {\textbf{Wrist 3}};
+    \node [tcp] (tcp) at (13.0,0) {\textbf{TCP / Ngòi bút}\\\footnotesize (Pen Tip)};
     
-    \path[->, thick] (base) edge node {$\theta_1$} (shoulder);
-    \path[->, thick] (shoulder) edge node {$\theta_2$} (elbow);
-    \path[->, thick] (elbow) edge node {$\theta_3$} (w1);
-    \path[->, thick] (w1) edge node {$\theta_4$} (w2);
-    \path[->, thick] (w2) edge node {$\theta_5$} (w3);
-    \path[->, thick] (w3) edge node {$\theta_6$} (tcp);
+    \path[->, thick] (base) edge node[above] {$\theta_1$} (shoulder);
+    \path[->, thick] (shoulder) edge node[above] {$\theta_2$} (elbow);
+    \path[->, thick] (elbow) edge node[above] {$\theta_3$} (w1);
+    \path[->, thick] (w1) edge node[above] {$\theta_4$} (w2);
+    \path[->, thick] (w2) edge node[above] {$\theta_5$} (w3);
+    \path[->, thick] (w3) edge node[above] {$\theta_6$} (tcp);
 \end{tikzpicture}
-\caption{Sơ đồ chuỗi động học liên kết của robot Universal Robots UR3}
+}
+\caption{Sơ đồ chuỗi động học liên kết 6 bậc tự do của robot Universal Robots UR3}
 \label{fig:kinematic_chain}
 \end{figure}
 
@@ -296,6 +302,7 @@ Hệ thống điều khiển được thiết kế theo cấu trúc module phân
 
 \begin{figure}[H]
 \centering
+\resizebox{0.88\textwidth}{!}{
 \begin{tikzpicture}[node distance=1.8cm, auto, >=latex']
     % Các khối
     \node [draw, rectangle, rounded corners, fill=blue!10, text width=3.2cm, align=center] (input) {
@@ -351,6 +358,7 @@ Hệ thống điều khiển được thiết kế theo cấu trúc module phân
     \draw [->, thick] (marker) -- (rviz);
     \draw [<->, thick] (sim) -- (rviz);
 \end{tikzpicture}
+}
 \caption{Sơ đồ luồng dữ liệu và kiến trúc các module trong hệ thống}
 \label{fig:system_architecture}
 \end{figure}
@@ -378,20 +386,50 @@ Trước đây, khi nối tất cả các contour thành một chuỗi waypoint 
 Hệ thống đã được thiết kế lại theo nguyên lý \textbf{Chu trình 5 pha độc lập cho từng contour}:
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[node distance=1.5cm, auto, >=latex']
-    \node [draw, rectangle, fill=blue!10] (p1) {\textbf{Pha 1: Hover Start}\\$X = X_{\text{surf}} - 0.08\,\text{m}$ (Trên không)};
-    \node [draw, rectangle, fill=yellow!10, right=0.8cm of p1] (p2) {\textbf{Pha 2: Plunge}\\Hạ bút vuông góc $\to X_{\text{surf}}$};
-    \node [draw, rectangle, fill=green!10, right=0.8cm of p2] (p3) {\textbf{Pha 3: Draw Loop}\\Quét viền chữ trên bảng};
-    \node [draw, rectangle, fill=orange!10, below=1cm of p3] (p4) {\textbf{Pha 4: Close Loop}\\Chốt điểm đầu nét vẽ};
-    \node [draw, rectangle, fill=red!10, left=0.8cm of p4] (p5) {\textbf{Pha 5: Retract}\\Nhấc lùi vuông góc ra $8\,\text{cm}$};
-    \node [draw, circle, fill=gray!20, left=0.8cm of p5] (stop) {\textbf{Dừng hẳn}\\$v=0$};
+\resizebox{0.95\textwidth}{!}{
+\begin{tikzpicture}[>=latex', font=\small]
+    \tikzstyle{phasebox} = [draw, rectangle, rounded corners, text width=3.8cm, minimum height=1.3cm, align=center, thick]
 
-    \draw [->, thick] (p1) -- (p2);
-    \draw [->, thick] (p2) -- (p3);
-    \draw [->, thick] (p3) -- (p4);
-    \draw [->, thick] (p4) -- (p5);
-    \draw [->, thick] (p5) -- (stop);
+    % Hàng 1 (Từ trái sang phải)
+    \node [phasebox, fill=blue!12, draw=blue!70] (p1) at (-4.5, 0) {
+        \textbf{Pha 1: Hover Start}\\[2pt]
+        \footnotesize $X = X_{\text{surf}} - 0.08\,\text{m}$ (Trên không)
+    };
+    
+    \node [phasebox, fill=yellow!15, draw=orange!70] (p2) at (0, 0) {
+        \textbf{Pha 2: Plunge}\\[2pt]
+        \footnotesize Hạ bút vuông góc $\to X_{\text{surf}}$
+    };
+    
+    \node [phasebox, fill=green!15, draw=green!60!black] (p3) at (4.5, 0) {
+        \textbf{Pha 3: Draw Surface}\\[2pt]
+        \footnotesize Quét viền chữ trên bảng
+    };
+
+    % Hàng 2 (Từ phải sang trái)
+    \node [phasebox, fill=cyan!15, draw=cyan!70!black] (p4) at (4.5, -2.2) {
+        \textbf{Pha 4: Close Loop}\\[2pt]
+        \footnotesize Chốt kín điểm đầu nét vẽ
+    };
+    
+    \node [phasebox, fill=red!15, draw=red!70] (p5) at (0, -2.2) {
+        \textbf{Pha 5: Retract}\\[2pt]
+        \footnotesize Nhấc lùi thẳng đứng ra $8\,\text{cm}$
+    };
+    
+    \node [phasebox, fill=gray!20, draw=gray!80] (stop) at (-4.5, -2.2) {
+        \textbf{Hoàn tất Contour}\\[2pt]
+        \footnotesize Dừng hẳn ($v=0$) $\to$ Sang nét mới
+    };
+
+    % Mũi tên kết nối
+    \draw [->, very thick, blue!80!black] (p1) -- (p2);
+    \draw [->, very thick, orange!80!black] (p2) -- (p3);
+    \draw [->, very thick, green!60!black] (p3) -- (p4);
+    \draw [->, very thick, cyan!80!black] (p4) -- (p5);
+    \draw [->, very thick, red!80!black] (p5) -- (stop);
 \end{tikzpicture}
+}
 \caption{Chu trình quỹ đạo 5 pha độc lập cho mỗi đường contour}
 \label{fig:5_phase_contour}
 \end{figure}
@@ -440,17 +478,28 @@ Hệ thống đã được thử nghiệm toàn diện trên mô phỏng với �
 
 \begin{table}[H]
 \centering
+\small
+\renewcommand{\arraystretch}{1.25}
 \caption{Bảng tổng hợp kết quả thực nghiệm các kịch bản vẽ}
 \label{tab:test_results}
-\begin{tabularx}{\textwidth}{lccccX}
+\begin{tabularx}{\textwidth}{@{} >{\raggedright\arraybackslash}p{2.6cm} 
+                                 >{\raggedright\arraybackslash}p{2.2cm} 
+                                 >{\centering\arraybackslash}p{2.0cm} 
+                                 >{\centering\arraybackslash}p{1.4cm} 
+                                 >{\centering\arraybackslash}p{1.4cm} 
+                                 >{\raggedright\arraybackslash}X @{}}
 \toprule
-\textbf{Kịch bản} & \textbf{Đối tượng} & \textbf{Số contour} & \textbf{Tỷ lệ Path} & \textbf{Thời gian} & \textbf{Đánh giá chất lượng} \\
+\textbf{Kịch bản} & \textbf{Ký tự / Ảnh} & \textbf{Số nét (Contour)} & \textbf{Tỷ lệ} & \textbf{Thời gian} & \textbf{Đánh giá kết quả hiển thị} \\
 \midrule
-1. Ảnh mặc định & File \texttt{letter.png} & 3 (1 ngoài, 2 trong) & 100\% & $\approx 24\,\text{s}$ & Chữ B sắc nét, 2 lỗ rỗng đều đặn, không nét thừa. \\
-2. Ký tự đơn & Chữ 'A' & 2 (1 ngoài, 1 trong) & 100\% & $\approx 18\,\text{s}$ & Tam giác nhọn trên đỉnh rõ ràng, lỗ tam giác kín. \\
-3. Ký tự đôi & Chữ 'B' (render) & 3 (1 ngoài, 2 trong) & 100\% & $\approx 25\,\text{s}$ & Nét cong mượt mà, phân tách hoàn hảo 3 chu trình. \\
-4. Ký tự hở & Chữ 'C' & 1 (viền đơn) & 100\% & $\approx 14\,\text{s}$ & Vòng cung mở chuẩn xác, đóng kín nét viền chữ. \\
-5. Chuỗi ký tự & Từ 'UR3' & 4 (3 ngoài, 1 trong) & 99.2\% & $\approx 42\,\text{s}$ & Vẽ đúng thứ tự từ trái qua phải (U $\to$ R $\to$ 3). \\
+1. Ảnh mặc định & \texttt{letter.png} & 3 (1 ngoài, 2 lỗ) & 100\% & $\approx 24\,\text{s}$ & Chữ B sắc nét, 2 lỗ rỗng đều đặn, không có nét thừa. \\
+\addlinespace[3pt]
+2. Ký tự đơn & Chữ 'A' & 2 (1 ngoài, 1 lỗ) & 100\% & $\approx 18\,\text{s}$ & Đỉnh nhọn sắc cạnh, tam giác bên trong kín khít. \\
+\addlinespace[3pt]
+3. Ký tự đôi & Chữ 'B' (render) & 3 (1 ngoài, 2 lỗ) & 100\% & $\approx 25\,\text{s}$ & Nét cong mượt mà, phân tách chuẩn 3 chu trình vẽ. \\
+\addlinespace[3pt]
+4. Ký tự hở & Chữ 'C' & 1 (viền đơn) & 100\% & $\approx 14\,\text{s}$ & Cung mở chuẩn xác, viền chữ khép kín không hở. \\
+\addlinespace[3pt]
+5. Chuỗi ký tự & Chuỗi 'UR3' & 4 (3 ngoài, 1 lỗ) & 99.2\% & $\approx 42\,\text{s}$ & Vẽ đúng thứ tự từ trái sang phải (U $\to$ R $\to$ 3). \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -665,3 +714,4 @@ std::vector<std::vector<geometry_msgs::msg::Pose>> generateContoursWaypoints(
 \end{lstlisting}
 
 \end{document}
+
