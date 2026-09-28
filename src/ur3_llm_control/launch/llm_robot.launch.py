@@ -13,7 +13,7 @@ Khoi dong tron goi 1 lenh duy nhat:
 
 import os
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, TimerAction
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, TimerAction, ExecuteProcess
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution
@@ -213,6 +213,24 @@ def generate_launch_description():
         actions=[llm_node],
     )
 
+    # 7. Tu dong mo cua so Terminal rieng biet de nguoi dung nhap cau lenh truc tiep
+    user_console_cmd = ExecuteProcess(
+        cmd=[
+            "gnome-terminal",
+            "--title=UR3 LLM Command Console",
+            "--",
+            "ros2",
+            "run",
+            "ur3_llm_control",
+            "user_console",
+        ],
+        condition=IfCondition(interactive),
+    )
+    delayed_console = TimerAction(
+        period=17.0,
+        actions=[user_console_cmd],
+    )
+
     return LaunchDescription(
         declared_arguments
         + [
@@ -221,5 +239,6 @@ def generate_launch_description():
             rviz_node,
             scene_spawner_node,
             delayed_llm_node,
+            delayed_console,
         ]
     )

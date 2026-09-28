@@ -54,10 +54,11 @@ class LLMInteractiveNode(Node):
         self.skills = RobotSkills(self, self.scene_config)
         self.skill_executor = SkillExecutor(self.skills)
 
-        # 3. Subscriber nhan cau lenh qua topic /user_command
+        # 3. Subscriber nhan cau lenh qua topic /user_command & Publisher phan hoi
         self.sub_cmd = self.create_subscription(
             String, "/user_command", self._topic_command_callback, 10
         )
+        self.feedback_pub = self.create_publisher(String, "/command_feedback", 10)
 
         self.get_logger().info("=" * 65)
         self.get_logger().info(f"Sinh vien: {self.planner.student_name} - MSSV: {self.planner.student_id}")
@@ -81,7 +82,8 @@ class LLMInteractiveNode(Node):
         """Callback khi nhan cau lenh qua topic /user_command."""
         cmd = msg.data.strip()
         if cmd:
-            self.process_command(cmd)
+            self.get_logger().info(f"Nhan cau lenh qua /user_command: '{cmd}'")
+            threading.Thread(target=self.process_command, args=(cmd,), daemon=True).start()
 
     def _console_loop(self):
         """Vong lap doc cau lenh truc tiep tu ban phim console."""
@@ -137,14 +139,18 @@ class LLMInteractiveNode(Node):
 
 
 def main(args=None):
+    from rclpy.executors import MultiThreadedExecutor
     rclpy.init(args=args)
     node = LLMInteractiveNode()
+    executor = MultiThreadedExecutor(num_threads=4)
+    executor.add_node(node)
     try:
-        rclpy.spin(node)
+        executor.spin()
     except KeyboardInterrupt:
         pass
-    node.destroy_node()
-    rclpy.shutdown()
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
 
 
 if __name__ == "__main__":

@@ -267,6 +267,13 @@ class RobotSkills:
             return self.zones_config[name].get("position")[:2]
         return None
 
+    def _wait_for_future(self, future, timeout_sec: float = 10.0) -> bool:
+        """Cho future hoan thanh ma khong gay deadlock hoac xung dot spin."""
+        start_time = time.time()
+        while not future.done() and (time.time() - start_time < timeout_sec):
+            time.sleep(0.02)
+        return future.done()
+
     def _move_to_joint_target(self, joint_values: list) -> bool:
         """Lap ke hoach va thuc thi dich khop (Joint Target)."""
         if not self._move_group_client.wait_for_server(timeout_sec=5.0):
@@ -294,7 +301,7 @@ class RobotSkills:
         goal_msg.request.goal_constraints.append(constraints)
 
         send_goal_future = self._move_group_client.send_goal_async(goal_msg)
-        rclpy.spin_until_future_complete(self.node, send_goal_future, timeout_sec=6.0)
+        self._wait_for_future(send_goal_future, timeout_sec=6.0)
 
         goal_handle = send_goal_future.result()
         if not goal_handle or not goal_handle.accepted:
@@ -302,7 +309,7 @@ class RobotSkills:
             return False
 
         get_result_future = goal_handle.get_result_async()
-        rclpy.spin_until_future_complete(self.node, get_result_future, timeout_sec=15.0)
+        self._wait_for_future(get_result_future, timeout_sec=15.0)
 
         result = get_result_future.result()
         if result and result.result.error_code.val == 1:
@@ -363,14 +370,14 @@ class RobotSkills:
         goal_msg.request.goal_constraints.append(constraints)
 
         send_goal_future = self._move_group_client.send_goal_async(goal_msg)
-        rclpy.spin_until_future_complete(self.node, send_goal_future, timeout_sec=5.0)
+        self._wait_for_future(send_goal_future, timeout_sec=5.0)
 
         goal_handle = send_goal_future.result()
         if not goal_handle or not goal_handle.accepted:
             return False
 
         get_result_future = goal_handle.get_result_async()
-        rclpy.spin_until_future_complete(self.node, get_result_future, timeout_sec=15.0)
+        self._wait_for_future(get_result_future, timeout_sec=15.0)
 
         result = get_result_future.result()
         return bool(result and result.result.error_code.val == 1)
@@ -403,7 +410,7 @@ class RobotSkills:
         req.avoid_collisions = True
 
         future = self._cartesian_path_client.call_async(req)
-        rclpy.spin_until_future_complete(self.node, future, timeout_sec=3.0)
+        self._wait_for_future(future, timeout_sec=3.0)
 
         res = future.result()
         if res and res.fraction > 0.8:
@@ -412,11 +419,11 @@ class RobotSkills:
                 goal = ExecuteTrajectory.Goal()
                 goal.trajectory = res.solution
                 exec_future = self._execute_traj_client.send_goal_async(goal)
-                rclpy.spin_until_future_complete(self.node, exec_future, timeout_sec=5.0)
+                self._wait_for_future(exec_future, timeout_sec=5.0)
                 handle = exec_future.result()
                 if handle and handle.accepted:
                     res_future = handle.get_result_async()
-                    rclpy.spin_until_future_complete(self.node, res_future, timeout_sec=10.0)
+                    self._wait_for_future(res_future, timeout_sec=10.0)
                     return True
         return False
 
