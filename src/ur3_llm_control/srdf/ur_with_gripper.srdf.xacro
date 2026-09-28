@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<robot xmlns:xacro="http://wiki.ros.org/xacro" name="$(arg name)">
+
+  <!-- Robot name parameter -->
+  <xacro:arg name="name" default="ur"/>
+  <!-- Parameters -->
+  <xacro:arg name="prefix" default="" />
+
+  <!-- Include standard UR SRDF macro -->
+  <xacro:include filename="$(find ur_moveit_config)/srdf/ur_macro.srdf.xacro"/>
+  <xacro:ur_srdf name="$(arg name)" prefix="$(arg prefix)"/>
+
+  <!-- Disable collisions for gripper links to allow collision-free planning -->
+  <disable_collisions link1="$(arg prefix)tool0" link2="$(arg prefix)gripper_base" reason="Adjacent" />
+  <disable_collisions link1="$(arg prefix)wrist_3_link" link2="$(arg prefix)gripper_base" reason="Adjacent" />
+  <disable_collisions link1="$(arg prefix)wrist_2_link" link2="$(arg prefix)gripper_base" reason="Never" />
+  <disable_collisions link1="$(arg prefix)wrist_1_link" link2="$(arg prefix)gripper_base" reason="Never" />
+  <disable_collisions link1="$(arg prefix)flange" link2="$(arg prefix)gripper_base" reason="Adjacent" />
+  <disable_collisions link1="$(arg prefix)ft_frame" link2="$(arg prefix)gripper_base" reason="Adjacent" />
+
+  <disable_collisions link1="$(arg prefix)gripper_base" link2="$(arg prefix)gripper_left_finger" reason="Adjacent" />
+  <disable_collisions link1="$(arg prefix)gripper_base" link2="$(arg prefix)gripper_right_finger" reason="Adjacent" />
+  <disable_collisions link1="$(arg prefix)gripper_left_finger" link2="$(arg prefix)gripper_right_finger" reason="Never" />
+
+  <disable_collisions link1="$(arg prefix)tool0" link2="$(arg prefix)gripper_left_finger" reason="Never" />
+  <disable_collisions link1="$(arg prefix)tool0" link2="$(arg prefix)gripper_right_finger" reason="Never" />
+  <disable_collisions link1="$(arg prefix)wrist_3_link" link2="$(arg prefix)gripper_left_finger" reason="Never" />
+  <disable_collisions link1="$(arg prefix)wrist_3_link" link2="$(arg prefix)gripper_right_finger" reason="Never" />
+  <disable_collisions link1="$(arg prefix)flange" link2="$(arg prefix)gripper_left_finger" reason="Never" />
+  <disable_collisions link1="$(arg prefix)flange" link2="$(arg prefix)gripper_right_finger" reason="Never" />
+  <disable_collisions link1="$(arg prefix)ft_frame" link2="$(arg prefix)gripper_left_finger" reason="Never" />
+  <disable_collisions link1="$(arg prefix)ft_frame" link2="$(arg prefix)gripper_right_finger" reason="Never" />
+
+</robot>

@@ -277,9 +277,8 @@ class RobotSkills:
     def _move_to_joint_target(self, joint_values: list) -> bool:
         """Lap ke hoach va thuc thi dich khop (Joint Target)."""
         if not self._move_group_client.wait_for_server(timeout_sec=5.0):
-            self.node.get_logger().warn("MoveGroup action server khong phan hoi. Thu dung che do gia lap.")
-            time.sleep(1.5)
-            return True
+            self.node.get_logger().error("MoveGroup action server khong phan hoi!")
+            return False
 
         goal_msg = MoveGroup.Goal()
         goal_msg.request.group_name = "ur_manipulator"
@@ -287,21 +286,24 @@ class RobotSkills:
         goal_msg.request.allowed_planning_time = 5.0
         goal_msg.request.max_velocity_scaling_factor = 0.5
         goal_msg.request.max_acceleration_scaling_factor = 0.5
+        goal_msg.planning_options.plan_only = False
+        goal_msg.planning_options.planning_scene_diff.is_diff = True
+        goal_msg.request.start_state.is_diff = True
 
         constraints = Constraints()
         for idx, (name, val) in enumerate(zip(self.joint_names, joint_values)):
             jc = JointConstraint()
             jc.joint_name = name
             jc.position = float(val)
-            jc.tolerance_above = 0.01
-            jc.tolerance_below = 0.01
+            jc.tolerance_above = 0.02
+            jc.tolerance_below = 0.02
             jc.weight = 1.0
             constraints.joint_constraints.append(jc)
 
         goal_msg.request.goal_constraints.append(constraints)
 
         send_goal_future = self._move_group_client.send_goal_async(goal_msg)
-        self._wait_for_future(send_goal_future, timeout_sec=6.0)
+        self._wait_for_future(send_goal_future, timeout_sec=10.0)
 
         goal_handle = send_goal_future.result()
         if not goal_handle or not goal_handle.accepted:
@@ -309,7 +311,7 @@ class RobotSkills:
             return False
 
         get_result_future = goal_handle.get_result_async()
-        self._wait_for_future(get_result_future, timeout_sec=15.0)
+        self._wait_for_future(get_result_future, timeout_sec=30.0)
 
         result = get_result_future.result()
         if result and result.result.error_code.val == 1:
@@ -318,21 +320,24 @@ class RobotSkills:
 
     def _move_to_pose_target(self, target_pose: Pose) -> bool:
         """Lap ke hoach va thuc thi vi tri khong gian Descartes Pose."""
-        if not self._move_group_client.wait_for_server(timeout_sec=3.0):
-            time.sleep(1.5)
-            return True
+        if not self._move_group_client.wait_for_server(timeout_sec=5.0):
+            self.node.get_logger().error("MoveGroup action server khong phan hoi!")
+            return False
 
         goal_msg = MoveGroup.Goal()
         goal_msg.request.group_name = "ur_manipulator"
         goal_msg.request.num_planning_attempts = 10
         goal_msg.request.allowed_planning_time = 5.0
-        goal_msg.request.max_velocity_scaling_factor = 0.4
-        goal_msg.request.max_acceleration_scaling_factor = 0.4
+        goal_msg.request.max_velocity_scaling_factor = 0.5
+        goal_msg.request.max_acceleration_scaling_factor = 0.5
+        goal_msg.planning_options.plan_only = False
+        goal_msg.planning_options.planning_scene_diff.is_diff = True
+        goal_msg.request.start_state.is_diff = True
 
         # Dinh vi Constraint cho end-effector tool0
         pose_stamped = PoseStamped()
         pose_stamped.header.frame_id = "base_link"
-        pose_stamped.header.stamp = self.node.get_clock().now().to_msg()
+        pose_stamped.header.stamp = rclpy.time.Time().to_msg()
         # Offset tool0 do co gan gripper (gripper dai ~8cm)
         pose_stamped.pose = target_pose
         pose_stamped.pose.position.z += 0.08
@@ -348,7 +353,7 @@ class RobotSkills:
         bv = BoundingVolume()
         sp = SolidPrimitive()
         sp.type = SolidPrimitive.SPHERE
-        sp.dimensions = [0.015]
+        sp.dimensions = [0.025]
         bv.primitives.append(sp)
         bv.primitive_poses.append(pose_stamped.pose)
         pos_constraint.constraint_region = bv
@@ -359,9 +364,9 @@ class RobotSkills:
         orient_constraint.header.frame_id = "base_link"
         orient_constraint.link_name = "tool0"
         orient_constraint.orientation = target_pose.orientation
-        orient_constraint.absolute_x_axis_tolerance = 0.2
-        orient_constraint.absolute_y_axis_tolerance = 0.2
-        orient_constraint.absolute_z_axis_tolerance = 0.2
+        orient_constraint.absolute_x_axis_tolerance = 0.35
+        orient_constraint.absolute_y_axis_tolerance = 0.35
+        orient_constraint.absolute_z_axis_tolerance = 3.14159
         orient_constraint.weight = 1.0
 
         constraints = Constraints()
@@ -370,14 +375,14 @@ class RobotSkills:
         goal_msg.request.goal_constraints.append(constraints)
 
         send_goal_future = self._move_group_client.send_goal_async(goal_msg)
-        self._wait_for_future(send_goal_future, timeout_sec=5.0)
+        self._wait_for_future(send_goal_future, timeout_sec=10.0)
 
         goal_handle = send_goal_future.result()
         if not goal_handle or not goal_handle.accepted:
             return False
 
         get_result_future = goal_handle.get_result_async()
-        self._wait_for_future(get_result_future, timeout_sec=15.0)
+        self._wait_for_future(get_result_future, timeout_sec=30.0)
 
         result = get_result_future.result()
         return bool(result and result.result.error_code.val == 1)
@@ -390,7 +395,7 @@ class RobotSkills:
 
         req = GetCartesianPath.Request()
         req.header.frame_id = "base_link"
-        req.header.stamp = self.node.get_clock().now().to_msg()
+        req.header.stamp = rclpy.time.Time().to_msg()
         req.group_name = "ur_manipulator"
         req.link_name = "tool0"
 
@@ -410,7 +415,7 @@ class RobotSkills:
         req.avoid_collisions = True
 
         future = self._cartesian_path_client.call_async(req)
-        self._wait_for_future(future, timeout_sec=3.0)
+        self._wait_for_future(future, timeout_sec=5.0)
 
         res = future.result()
         if res and res.fraction > 0.8:
@@ -419,11 +424,11 @@ class RobotSkills:
                 goal = ExecuteTrajectory.Goal()
                 goal.trajectory = res.solution
                 exec_future = self._execute_traj_client.send_goal_async(goal)
-                self._wait_for_future(exec_future, timeout_sec=5.0)
+                self._wait_for_future(exec_future, timeout_sec=10.0)
                 handle = exec_future.result()
                 if handle and handle.accepted:
                     res_future = handle.get_result_async()
-                    self._wait_for_future(res_future, timeout_sec=10.0)
+                    self._wait_for_future(res_future, timeout_sec=30.0)
                     return True
         return False
 

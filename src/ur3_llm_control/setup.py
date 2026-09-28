@@ -16,6 +16,7 @@ setup(
         (os.path.join("share", package_name, "config", "ur3"), glob("config/ur3/*")),
         (os.path.join("share", package_name, "config", "ur3e"), glob("config/ur3e/*")),
         (os.path.join("share", package_name, "urdf"), glob("urdf/*")),
+        (os.path.join("share", package_name, "srdf"), glob("srdf/*")),
         (os.path.join("share", package_name, "worlds"), glob("worlds/*")),
         (os.path.join("share", package_name, "rviz"), glob("rviz/*")),
     ],

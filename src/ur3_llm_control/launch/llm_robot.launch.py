@@ -12,6 +12,8 @@ Khoi dong tron goi 1 lenh duy nhat:
 """
 
 import os
+os.environ["ROS_LOCALHOST_ONLY"] = "1"
+
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, TimerAction, ExecuteProcess
 from launch.conditions import IfCondition
@@ -34,6 +36,11 @@ def generate_launch_description():
             "start_sim",
             default_value="true",
             description="Khoi chay toan bo mo phong Gazebo va MoveIt 2 (true/false).",
+        ),
+        DeclareLaunchArgument(
+            "gazebo_gui",
+            default_value="true",
+            description="Mo giao dien do hoa Gazebo GUI (true/false).",
         ),
         DeclareLaunchArgument(
             "start_rviz",
@@ -59,6 +66,7 @@ def generate_launch_description():
 
     ur_type = LaunchConfiguration("ur_type")
     start_sim = LaunchConfiguration("start_sim")
+    gazebo_gui = LaunchConfiguration("gazebo_gui")
     start_rviz = LaunchConfiguration("start_rviz")
     interactive = LaunchConfiguration("interactive")
     command = LaunchConfiguration("command")
@@ -82,7 +90,10 @@ def generate_launch_description():
             "world_file": world_file,
             "description_package": "ur3_llm_control",
             "description_file": "ur_with_gripper.urdf.xacro",
+            "runtime_config_package": "ur3_llm_control",
+            "controllers_file": "ur_controllers.yaml",
             "launch_rviz": "false",
+            "gazebo_gui": gazebo_gui,
         }.items(),
         condition=IfCondition(start_sim),
     )
@@ -96,6 +107,8 @@ def generate_launch_description():
             "ur_type": ur_type,
             "description_package": "ur3_llm_control",
             "description_file": "ur_with_gripper.urdf.xacro",
+            "moveit_config_package": "ur3_llm_control",
+            "moveit_config_file": "ur_with_gripper.srdf.xacro",
             "launch_rviz": "false",
             "use_sim_time": "true",
         }.items(),
@@ -150,7 +163,7 @@ def generate_launch_description():
         [
             PathJoinSubstitution([FindExecutable(name="xacro")]),
             " ",
-            PathJoinSubstitution([FindPackageShare("ur_moveit_config"), "srdf", "ur.srdf.xacro"]),
+            PathJoinSubstitution([FindPackageShare("ur3_llm_control"), "srdf", "ur_with_gripper.srdf.xacro"]),
             " ",
             "name:=ur",
             " ",

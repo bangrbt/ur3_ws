@@ -11,7 +11,7 @@ import os
 import yaml
 import rclpy
 from rclpy.node import Node
-from geometry_msgs.msg import TransformStamped, Point
+from geometry_msgs.msg import TransformStamped, Point, Pose
 from visualization_msgs.msg import Marker, MarkerArray
 from moveit_msgs.msg import PlanningScene, CollisionObject
 from shape_msgs.msg import SolidPrimitive
@@ -22,7 +22,7 @@ class SceneSpawner(Node):
     """Node quan ly khong gian lam viec 3D cho UR3."""
 
     def __init__(self):
-        super().__init__("scene_spawner_node")
+        super().__init__("scene_spawner_node", automatically_declare_parameters_from_overrides=True)
         self.get_logger().info("Khoi tao Scene Spawner Node...")
 
         try:
@@ -40,8 +40,17 @@ class SceneSpawner(Node):
         self.planning_scene_pub = self.create_publisher(PlanningScene, "/planning_scene", 10)
         self.tf_broadcaster = StaticTransformBroadcaster(self)
 
-        # Timer dinh ky de refresh markers va collision objects
-        self.timer = self.create_timer(1.0, self.publish_all)
+        # 1. Phat Static TF dung 1 lan duy nhat voi timestamp 0 (hop le cho moi thoi diem)
+        self._publish_tf()
+
+        # 2. Timer dinh ky chi de refresh markers tren RViz (2s/lan)
+        self.timer = self.create_timer(2.0, self._publish_markers)
+
+        # 3. Phat collision objects sau 2 giay va 5 giay de chac chan MoveIt da san sang
+        self.create_timer(2.0, self._publish_collision_objects_once)
+        self.create_timer(5.0, self._publish_collision_objects_once)
+        self.collision_published = False
+
         self.get_logger().info("Scene Spawner da san sang (Markers, Collision Objects, TF)!")
 
     def _load_yaml(self, filepath: str) -> dict:
@@ -54,18 +63,18 @@ class SceneSpawner(Node):
         """Phat toan bo Markers, TF va PlanningScene CollisionObjects."""
         self._publish_tf()
         self._publish_markers()
-        self._publish_collision_objects()
+        self._publish_collision_objects_once()
 
     def _publish_tf(self):
-        """Phat TF frames cho cac vat va vung tren ban."""
+        """Phat TF frames cho cac vat va vung tren ban voi timestamp 0 (luon hop le)."""
         transforms = []
-        now = self.get_clock().now().to_msg()
+        zero_stamp = rclpy.time.Time().to_msg()
 
         # TF cho Cubes
         for name, data in self.scene_config.get("objects", {}).items():
             pos = data.get("initial_position", [0.3, 0.0, 0.02])
             t = TransformStamped()
-            t.header.stamp = now
+            t.header.stamp = zero_stamp
             t.header.frame_id = "base_link"
             t.child_frame_id = name
             t.transform.translation.x = float(pos[0])
@@ -78,7 +87,7 @@ class SceneSpawner(Node):
         for name, data in self.scene_config.get("zones", {}).items():
             pos = data.get("position", [0.4, 0.0, 0.001])
             t = TransformStamped()
-            t.header.stamp = now
+            t.header.stamp = zero_stamp
             t.header.frame_id = "base_link"
             t.child_frame_id = name
             t.transform.translation.x = float(pos[0])
@@ -199,7 +208,7 @@ class SceneSpawner(Node):
 
         self.marker_pub.publish(msg)
 
-    def _publish_collision_objects(self):
+    def _publish_collision_objects_once(self):
         """Phat vat can va vat the vao PlanningScene cua MoveIt."""
         ps = PlanningScene()
         ps.is_diff = True
@@ -219,16 +228,12 @@ class SceneSpawner(Node):
         sp_table.dimensions = [float(t_size[0]), float(t_size[1]), float(t_size[2])]
 
         co_table.primitives.append(sp_table)
-        co_table.primitive_poses.append(
-            Point(x=float(t_pos[0]), y=float(t_pos[1]), z=float(t_pos[2]))
-        )
-        # Convert to Pose
-        pose = co_table.primitive_poses[0]
-        co_table.primitive_poses[0] = Marker().pose
-        co_table.primitive_poses[0].position.x = float(t_pos[0])
-        co_table.primitive_poses[0].position.y = float(t_pos[1])
-        co_table.primitive_poses[0].position.z = float(t_pos[2])
-        co_table.primitive_poses[0].orientation.w = 1.0
+        p = Pose()
+        p.position.x = float(t_pos[0])
+        p.position.y = float(t_pos[1])
+        p.position.z = float(t_pos[2])
+        p.orientation.w = 1.0
+        co_table.primitive_poses.append(p)
 
         ps.world.collision_objects.append(co_table)
         self.planning_scene_pub.publish(ps)

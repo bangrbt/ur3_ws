@@ -7,6 +7,9 @@ Nguoi dung co the go cau lenh bang tieng Viet hoac tieng Anh truc tiep,
 gui toi Robot thong qua topic /user_command va nhan phan hoi tuc thi.
 """
 
+import os
+os.environ["ROS_LOCALHOST_ONLY"] = "1"
+
 import sys
 import threading
 import rclpy
@@ -26,7 +29,9 @@ class UserConsole(Node):
 
     def _feedback_callback(self, msg: String):
         """Hien thi thong tin phan hoi tu robot."""
-        print(f"\n[FEEDBACK] {msg.data}\n[UR3-LLM] Nhap cau lenh > ", end="", flush=True)
+        print(f"{msg.data}", flush=True)
+        if "TASK SUCCESS" in msg.data or "TASK FAILED" in msg.data or "TU CHOI THUC THI" in msg.data:
+            print("\n[UR3-LLM] Nhap cau lenh (hoac 'exit' de thoat) > ", end="", flush=True)
 
     def send_command(self, cmd: str):
         """Gui cau lenh toi robot qua topic /user_command."""
@@ -70,8 +75,8 @@ def main(args=None):
                     break
 
                 node.send_command(cmd)
-                print(f"-> [DA GUI] Lenh: '{cmd}'")
-                print("   Dang cho Robot lap ke hoach va thuc thi...")
+                print(f"-> [DA GUI] Lenh: '{cmd}'", flush=True)
+                print("   Dang cho Robot lap ke hoach va thuc thi...\n", flush=True)
             except EOFError:
                 break
     except KeyboardInterrupt:

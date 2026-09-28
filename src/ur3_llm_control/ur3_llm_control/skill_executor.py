@@ -25,8 +25,17 @@ from .robot_skills import RobotSkills
 class SkillExecutor:
     """Dieu phoi thuc thi tung Robot Skill va in log chuan hoa."""
 
-    def __init__(self, robot_skills: RobotSkills):
+    def __init__(self, robot_skills: RobotSkills, feedback_cb=None):
         self.skills = robot_skills
+        self.feedback_cb = feedback_cb
+
+    def _log(self, text: str):
+        print(text, flush=True)
+        if self.feedback_cb:
+            try:
+                self.feedback_cb(text)
+            except Exception:
+                pass
 
     def format_skill_call(self, step: Dict[str, Any]) -> str:
         """Dinh dang ten ham skill voi cac tham so."""
@@ -59,22 +68,22 @@ class SkillExecutor:
         plan: List[Dict[str, Any]] = plan_data.get("plan", [])
         thought: str = plan_data.get("thought", "")
 
-        print("\n" + "=" * 65)
-        print("USER COMMAND:")
-        print(f"  {user_command}")
-        print("-" * 65)
+        self._log("\n" + "=" * 65)
+        self._log("USER COMMAND:")
+        self._log(f"  {user_command}")
+        self._log("-" * 65)
 
         if thought:
-            print(f"LLM REASONING ({source_info}):")
-            print(f"  {thought}")
-            print("-" * 65)
+            self._log(f"LLM REASONING ({source_info}):")
+            self._log(f"  {thought}")
+            self._log("-" * 65)
 
-        print("LLM PLAN:")
+        self._log("LLM PLAN:")
         for step in plan:
-            print(f"    {self.format_skill_call(step)}")
-        print("-" * 65)
+            self._log(f"    {self.format_skill_call(step)}")
+        self._log("-" * 65)
 
-        print("EXECUTION:")
+        self._log("EXECUTION:")
         all_success = True
 
         for step in plan:
@@ -104,18 +113,18 @@ class SkillExecutor:
             except Exception as e:
                 status = f"EXCEPTION ({e})"
 
-            print(f"{call_repr} {dots} {status}")
+            self._log(f"{call_repr} {dots} {status}")
 
             if status != "SUCCESS":
                 all_success = False
-                print(f"[ERROR] Dung thuc thi tai buoc: {call_repr} voi trang thai '{status}'")
+                self._log(f"[ERROR] Dung thuc thi tai buoc: {call_repr} voi trang thai '{status}'")
                 break
 
-        print("-" * 65)
+        self._log("-" * 65)
         if all_success:
-            print("TASK SUCCESS")
+            self._log("TASK SUCCESS")
         else:
-            print("TASK FAILED")
-        print("=" * 65 + "\n")
+            self._log("TASK FAILED")
+        self._log("=" * 65 + "\n")
 
         return all_success

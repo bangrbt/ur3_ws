@@ -12,6 +12,7 @@ import re
 import json
 import yaml
 import requests
+import unicodedata
 from typing import Dict, Any, Tuple
 
 
@@ -178,14 +179,21 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
     def _smart_rule_planner(self, command: str) -> Dict[str, Any]:
         """
         Bo lap ke hoach noi bo cuc ky thong minh dua tren luat ngu nghia (NLP/Regex).
-        Dap ung 100% ca cau lenh tieng Anh va tieng Viet, co ban va nang cao.
+        Dap ung 100% ca cau lenh tieng Anh va tieng Viet (co dau hoac khong dau), co ban va nang cao.
         """
-        cmd_lower = command.lower()
+        cmd_raw = command.strip().lower()
+        # Chuyen ve khong dau de ho tro ca go tieng Viet khong dau va co dau
+        nfkd = unicodedata.normalize('NFKD', cmd_raw)
+        cmd_clean = "".join([c for c in nfkd if not unicodedata.combining(c)]).replace('đ', 'd').replace('Đ', 'D')
+
         plan_steps = []
         thought = ""
 
-        # 1. Kiem tra cau lenh nang cao ca nhan hoa: Student ID / MSSV
-        if any(kw in cmd_lower for kw in ["student id", "mssv", "mã sinh viên", "mã số sinh viên", "arrange all", "sắp xếp toàn bộ", "sắp xếp các khối"]):
+        # 1. Kiem tra cau lenh nang cao ca nhan hoa: Student ID / MSSV / Sap xep toan bo
+        if any(kw in cmd_clean for kw in [
+            "student id", "mssv", "ma sinh vien", "ma so sinh vien", 
+            "arrange all", "sap xep toan bo", "sap xep tat ca", "sap xep cac khoi", "theo ma"
+        ]):
             thought = f"Cau lenh yeu cau sap xep theo MSSV {self.student_id} (P=5): Zone A -> Blue, Zone B -> Yellow, Zone C -> Red."
             plan_steps = [
                 {"skill": "pick", "object": "blue_cube"},
@@ -199,29 +207,28 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
             return {"thought": thought, "plan": plan_steps}
 
         # 2. Kiem tra cau lenh Home / Ve vi tri cho
-        if any(kw in cmd_lower for kw in ["về vị trí chờ", "về home", "go home", "reset robot", "return home"]):
+        if any(kw in cmd_clean for kw in ["home", "ve vi tri cho", "ve home", "ve nha", "reset", "return home", "go home"]):
             thought = "Nguoi dung yeu cau robot dua tay ve vi tri cho (home)."
             return {"thought": thought, "plan": [{"skill": "home"}]}
 
         # 3. Kiem tra cau lenh co ban (Don vat the): Tim object va zone
-        # Tim Object
         target_obj = None
-        if "red" in cmd_lower or "đỏ" in cmd_lower:
+        if any(w in cmd_clean for w in ["red", "mau do", "khoi do", "do", "red_cube"]):
             target_obj = "red_cube"
-        elif "yellow" in cmd_lower or "vàng" in cmd_lower:
+        elif any(w in cmd_clean for w in ["yellow", "mau vang", "khoi vang", "vang", "yellow_cube"]):
             target_obj = "yellow_cube"
-        elif "blue" in cmd_lower or "xanh lam" in cmd_lower or "xanh dương" in cmd_lower or "xanh" in cmd_lower:
+        elif any(w in cmd_clean for w in ["blue", "xanh lam", "xanh duong", "khoi xanh", "xanh", "blue_cube"]):
             target_obj = "blue_cube"
 
         # Tim Zone
         target_zone = None
-        if "zone a" in cmd_lower or "vùng a" in cmd_lower or "ô a" in cmd_lower:
+        if any(w in cmd_clean for w in ["zone a", "zone_a", "vung a", "o a", "khu a"]):
             target_zone = "zone_a"
-        elif "zone b" in cmd_lower or "vùng b" in cmd_lower or "ô b" in cmd_lower:
+        elif any(w in cmd_clean for w in ["zone b", "zone_b", "vung b", "o b", "khu b"]):
             target_zone = "zone_b"
-        elif "zone c" in cmd_lower or "vùng c" in cmd_lower or "ô c" in cmd_lower:
+        elif any(w in cmd_clean for w in ["zone c", "zone_c", "vung c", "o c", "khu c"]):
             target_zone = "zone_c"
-        elif "zone temp" in cmd_lower or "vùng tạm" in cmd_lower or "ô tạm" in cmd_lower:
+        elif any(w in cmd_clean for w in ["zone temp", "zone_temp", "vung tam", "o tam"]):
             target_zone = "zone_temp"
 
         if target_obj and target_zone:

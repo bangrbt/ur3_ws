@@ -25,13 +25,19 @@ class LLMInteractiveNode(Node):
     """ROS 2 Node tuong tac giua nguoi dung, LLM va Robot."""
 
     def __init__(self):
-        super().__init__("llm_interactive_node")
+        super().__init__("llm_interactive_node", automatically_declare_parameters_from_overrides=True)
         self.get_logger().info("Khoi tao LLM Interactive Node...")
 
-        # Khai bao parameters
-        self.declare_parameter("command", "")
-        self.declare_parameter("interactive", True)
-        self.declare_parameter("config_dir", "")
+        # Khoa tranh chay dong thoi nhieu lenh cung luc
+        self.execution_lock = threading.Lock()
+
+        # Khai bao parameters (neu chua co trong overrides)
+        if not self.has_parameter("command"):
+            self.declare_parameter("command", "")
+        if not self.has_parameter("interactive"):
+            self.declare_parameter("interactive", True)
+        if not self.has_parameter("config_dir"):
+            self.declare_parameter("config_dir", "")
 
         config_dir_param = self.get_parameter("config_dir").get_parameter_value().string_value
         if not config_dir_param:
@@ -52,7 +58,7 @@ class LLMInteractiveNode(Node):
         self.planner = LLMPlanner(config_dir=config_dir_param)
         self.validator = TaskValidator()
         self.skills = RobotSkills(self, self.scene_config)
-        self.skill_executor = SkillExecutor(self.skills)
+        self.skill_executor = SkillExecutor(self.skills, feedback_cb=self._send_feedback)
 
         # 3. Subscriber nhan cau lenh qua topic /user_command & Publisher phan hoi
         self.sub_cmd = self.create_subscription(
@@ -78,27 +84,41 @@ class LLMInteractiveNode(Node):
         if is_interactive and not initial_cmd:
             threading.Thread(target=self._console_loop, daemon=True).start()
 
+    def _send_feedback(self, text: str):
+        """Gui thong diep phan hoi qua topic /command_feedback."""
+        try:
+            msg = String()
+            msg.data = text
+            self.feedback_pub.publish(msg)
+        except Exception:
+            pass
+
     def _topic_command_callback(self, msg: String):
         """Callback khi nhan cau lenh qua topic /user_command."""
         cmd = msg.data.strip()
-        if cmd:
-            self.get_logger().info(f"Nhan cau lenh qua /user_command: '{cmd}'")
-            threading.Thread(target=self.process_command, args=(cmd,), daemon=True).start()
+        if not cmd:
+            return
+        if self.execution_lock.locked():
+            self.get_logger().warn(f"Robot dang ban! Tu choi nhan lenh moi: '{cmd}'")
+            self._send_feedback("\n[ROBOT DANG BAN] Robot dang thuc thi cau lenh truoc do. Vui long cho hoan tat roi thu lai!")
+            return
+        self.get_logger().info(f"Nhan cau lenh qua /user_command: '{cmd}'")
+        threading.Thread(target=self.process_command, args=(cmd,), daemon=True).start()
 
     def _console_loop(self):
         """Vong lap doc cau lenh truc tiep tu ban phim console."""
-        print("\n" + "=" * 65)
-        print("  HE THONG DIEU KHIEN ROBOT UR3 BANG LLM & SKILL-BASED PLANNING")
-        print(f"  Sinh vien: {self.planner.student_name} - MSSV: {self.planner.student_id}")
-        print("=" * 65)
-        print("Vi du cau lenh co ban:")
-        print("  - 'Put the red cube in zone B' hoac 'Đưa khối màu đỏ vào vùng B'")
-        print("  - 'Move the blue cube to zone A' hoac 'Chuyển khối màu xanh lam sang ô A'")
-        print("  - 'Hãy lấy khối màu vàng và đặt nó vào ô C'")
-        print("Vi du cau lenh nang cao (Ca nhan hoa theo MSSV):")
-        print("  - 'Arrange all objects according to my student ID'")
-        print("  - 'Hãy sắp xếp các khối theo mã sinh viên của tôi'")
-        print("=" * 65)
+        print("\n" + "=" * 65, flush=True)
+        print("  HE THONG DIEU KHIEN ROBOT UR3 BANG LLM & SKILL-BASED PLANNING", flush=True)
+        print(f"  Sinh vien: {self.planner.student_name} - MSSV: {self.planner.student_id}", flush=True)
+        print("=" * 65, flush=True)
+        print("Vi du cau lenh co ban:", flush=True)
+        print("  - 'Put the red cube in zone B' hoac 'Đưa khối màu đỏ vào vùng B'", flush=True)
+        print("  - 'Move the blue cube to zone A' hoac 'Chuyển khối màu xanh lam sang ô A'", flush=True)
+        print("  - 'Hãy lấy khối màu vàng và đặt nó vào ô C'", flush=True)
+        print("Vi du cau lenh nang cao (Ca nhan hoa theo MSSV):", flush=True)
+        print("  - 'Arrange all objects according to my student ID'", flush=True)
+        print("  - 'Hãy sắp xếp các khối theo mã sinh viên của tôi'", flush=True)
+        print("=" * 65, flush=True)
 
         while rclpy.ok():
             try:
@@ -106,7 +126,7 @@ class LLMInteractiveNode(Node):
                 if not user_input:
                     continue
                 if user_input.lower() in ["exit", "quit"]:
-                    print("Dang thoat...")
+                    print("Dang thoat...", flush=True)
                     os._exit(0)
 
                 self.process_command(user_input)
@@ -115,27 +135,40 @@ class LLMInteractiveNode(Node):
 
     def process_command(self, command: str):
         """Xu ly toan ven chu trinh: Command -> LLM -> Validator -> Executor."""
-        print(f"\n[INFO] Dang xu ly cau lenh: '{command}'...")
-
-        # 1. LLM Task Planner sinh ke hoach co cau truc
-        plan_dict, source_info = self.planner.plan(command)
-
-        # 2. Plan Validator kiem tra tinh hop le
-        current_holding = self.skills.holding_object
-        is_valid, validation_msg = self.validator.validate_plan(plan_dict, initial_holding=current_holding)
-
-        if not is_valid:
-            print("\n" + "!" * 65)
-            print("[PLAN VALIDATOR] KE HOACH BI TU CHOI THUC THI!")
-            print(f"Ly do: {validation_msg}")
-            print(f"Raw Plan: {plan_dict}")
-            print("!" * 65 + "\n")
+        if not self.execution_lock.acquire(blocking=False):
+            self.get_logger().warn(f"Robot dang ban! Khong the xu ly: '{command}'")
+            self._send_feedback("\n[ROBOT DANG BAN] Robot dang thuc thi. Vui long doi!")
             return
 
-        print(f"[PLAN VALIDATOR] PASSED: {validation_msg}")
+        try:
+            msg_start = f"Dang xu ly cau lenh: '{command}'..."
+            self.get_logger().info(msg_start)
+            self._send_feedback(msg_start)
 
-        # 3. Skill Executor thuc thi tung Robot Skill
-        self.skill_executor.execute_plan(command, plan_dict, source_info=source_info)
+            # 1. LLM Task Planner sinh ke hoach co cau truc
+            plan_dict, source_info = self.planner.plan(command)
+
+            # 2. Plan Validator kiem tra tinh hop le
+            current_holding = self.skills.holding_object
+            is_valid, validation_msg = self.validator.validate_plan(plan_dict, initial_holding=current_holding)
+
+            if not is_valid:
+                err_msg = (
+                    "\n" + "!" * 65 + "\n"
+                    + "[PLAN VALIDATOR] KE HOACH BI TU CHOI THUC THI!\n"
+                    + f"Ly do: {validation_msg}\n"
+                    + "!" * 65 + "\n"
+                )
+                self.get_logger().warn(f"Ke hoach bi tu choi: {validation_msg}")
+                self._send_feedback(err_msg)
+                return
+
+            self.get_logger().info(f"[PLAN VALIDATOR] PASSED: {validation_msg}")
+
+            # 3. Skill Executor thuc thi tung Robot Skill
+            self.skill_executor.execute_plan(command, plan_dict, source_info=source_info)
+        finally:
+            self.execution_lock.release()
 
 
 def main(args=None):
