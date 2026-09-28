@@ -509,6 +509,7 @@ class RobotSkills:
         req.header.stamp = self.node.get_clock().now().to_msg()
         req.group_name = "ur_manipulator"
         req.link_name = "tool0"
+        req.start_state.is_diff = True
 
         # Offset z cho tool0 do co gripper
         offset_wps = []
@@ -541,6 +542,7 @@ class RobotSkills:
         current_time = 0.0
         traj.points[0].time_from_start.sec = 0
         traj.points[0].time_from_start.nanosec = 0
+        traj.points[0].velocities = [0.0] * len(traj.points[0].positions)
         max_vel = 0.45  # rad/s
 
         for i in range(1, num_points):
@@ -559,10 +561,13 @@ class RobotSkills:
                 for k in range(len(traj.points[i].positions))
             ]
 
-        # Thuc thi trajectory
+        # Diem cuoi cung dung yen
+        traj.points[-1].velocities = [0.0] * len(traj.points[-1].positions)
+
+        # Thuc thi trajectory bang MoveIt ExecuteTrajectory (yeu cau RobotTrajectory)
         if self._execute_traj_client.wait_for_server(timeout_sec=3.0):
             goal = ExecuteTrajectory.Goal()
-            goal.trajectory = traj
+            goal.trajectory = res.solution
             exec_future = self._execute_traj_client.send_goal_async(goal)
             self._wait_for_future(exec_future, timeout_sec=10.0)
             handle = exec_future.result()
@@ -570,7 +575,11 @@ class RobotSkills:
                 res_future = handle.get_result_async()
                 self._wait_for_future(res_future, timeout_sec=30.0)
                 exec_res = res_future.result()
-                return bool(exec_res and exec_res.result.error_code.val == 1)
+                if exec_res:
+                    err = getattr(getattr(exec_res, "result", None), "error_code", None)
+                    err_val = getattr(err, "val", 0) if err else 0
+                    status = getattr(exec_res, "status", 0)
+                    return bool(err_val == 1 or status == 4)
         return False
 
     def _attach_object_to_robot(self, object_name: str):
