@@ -136,21 +136,26 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
                     plan_dict = self._call_9router_api(user_command_clean, target_url=test_url)
                     if plan_dict and "plan" in plan_dict and len(plan_dict["plan"]) > 0:
                         banner = f"ONLINE LLM (9Router @ {test_url} - Model: {self.model})"
+                        conn_status = f"📡 [KẾT NỐI API THÀNH CÔNG] Đang lập kế hoạch qua 9Router Online (URL: {test_url} | Model: {self.model})"
                         print(f"\n[PLANNER MODE] >>> {banner} <<<", flush=True)
-                        return plan_dict, banner
+                        return plan_dict, banner, conn_status
                 except Exception as e:
                     last_error = e
 
         # 2. Che do Offline Smart Planner (Fallback)
         if self.fallback_enabled:
-            reason = f"Lý do: Không thể kết nối tới 9Router ({last_error}). Đang chuyển sang Smart Planner nội bộ." if last_error else "Chưa cấu hình API Key 9Router."
-            banner = "OFFLINE Smart Planner (Chế độ mô phỏng độc lập)"
+            reason = f"Không thể kết nối tới 9Router API / Internet ({last_error})" if last_error else "Chưa cấu hình API Key 9Router"
+            banner = "OFFLINE Smart Planner (Chế độ mô phỏng nội bộ)"
+            conn_status = (
+                f"⚠️ [CẢNH BÁO MẤT KẾT NỐI API]: {reason}.\n"
+                f"   -> Hệ thống đang tự động sử dụng bộ lập kế hoạch nội bộ (Offline Smart Planner)!"
+            )
             print(f"\n[PLANNER MODE] >>> {banner} <<<", flush=True)
-            print(f"[THÔNG BÁO] {reason}\n", flush=True)
+            print(f"{conn_status}\n", flush=True)
             plan_dict = self._smart_rule_planner(user_command_clean)
-            return plan_dict, banner
+            return plan_dict, banner, conn_status
 
-        return {"plan": []}, "No Planner Available"
+        return {"plan": []}, "No Planner Available", "❌ Không có bộ lập kế hoạch nào khả dụng."
 
     def _call_9router_api(self, user_command: str, target_url: str = None) -> Dict[str, Any]:
         """Gui HTTP Request chuan OpenAI Chat Completion toi 9Router."""
@@ -226,12 +231,14 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
             "arrange all", "sap xep toan bo", "sap xep tat ca", "sap xep cac khoi", "theo ma"
         ]):
             thought = (
-                f"Cau lenh yeu cau sap xep theo MSSV {self.student_id} (XX={self.xx} -> P={self.p_value}): "
+                f"Cau lenh yeu cau sap xep theo MSSV {self.student_id} (XX={self.xx} -> P={self.p_value}). "
+                f"Tien hanh don sach cac khoi dang o trong vung ve khay truoc de tranh chong de, sau do sap xep: "
                 f"Zone A -> {self.zone_mapping['zone_a']}, "
                 f"Zone B -> {self.zone_mapping['zone_b']}, "
                 f"Zone C -> {self.zone_mapping['zone_c']}."
             )
             plan_steps = [
+                {"skill": "clear_zones"},
                 {"skill": "pick", "object": self.zone_mapping["zone_a"]},
                 {"skill": "place", "object": self.zone_mapping["zone_a"], "zone": "zone_a"},
                 {"skill": "pick", "object": self.zone_mapping["zone_b"]},
@@ -326,8 +333,9 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
             target_zone = invalid_zone
 
         if target_obj and target_zone:
-            thought = f"Nguoi dung yeu cau gap vat '{target_obj}' dat vao vung '{target_zone}'."
+            thought = f"Nguoi dung yeu cau gap vat '{target_obj}' dat vao vung '{target_zone}' (kiem tra va don sach vung truoc neu co vat khac)."
             plan_steps = [
+                {"skill": "clear_zone", "zone": target_zone},
                 {"skill": "pick", "object": target_obj},
                 {"skill": "place", "object": target_obj, "zone": target_zone},
                 {"skill": "home"}

@@ -146,7 +146,10 @@ class LLMInteractiveNode(Node):
             self._send_feedback(msg_start)
 
             # 1. LLM Task Planner sinh ke hoach co cau truc
-            plan_dict, source_info = self.planner.plan(command)
+            plan_dict, source_info, conn_status = self.planner.plan(command)
+
+            # Phat tin hieu ket noi API / canh bao mat ket noi toi Console nguoi dung
+            self._send_feedback(f"\n{conn_status}\n")
 
             # 2. Plan Validator kiem tra tinh hop le
             current_holding = self.skills.holding_object
@@ -166,7 +169,7 @@ class LLMInteractiveNode(Node):
             self.get_logger().info(f"[PLAN VALIDATOR] PASSED: {validation_msg}")
 
             # 3. Skill Executor thuc thi tung Robot Skill
-            self.skill_executor.execute_plan(command, plan_dict, source_info=source_info)
+            self.skill_executor.execute_plan(command, plan_dict, source_info=source_info, connection_alert=conn_status)
         finally:
             self.execution_lock.release()
 

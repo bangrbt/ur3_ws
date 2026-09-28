@@ -46,6 +46,10 @@ class SkillExecutor:
             return f"pick({step.get('object', '')})"
         elif skill == "place":
             return f"place({step.get('object', '')}, {step.get('zone', '')})"
+        elif skill == "clear_zones":
+            return "clear_zones()"
+        elif skill == "clear_zone":
+            return f"clear_zone({step.get('zone', '')})"
         elif skill == "swap":
             obj_a = step.get("object_a") or step.get("object1", "")
             obj_b = step.get("object_b") or step.get("object2", "")
@@ -70,7 +74,7 @@ class SkillExecutor:
             return f"close_gripper({obj})" if obj else "close_gripper()"
         return f"{skill}()"
 
-    def execute_plan(self, user_command: str, plan_data: Dict[str, Any], source_info: str = "LLM") -> bool:
+    def execute_plan(self, user_command: str, plan_data: Dict[str, Any], source_info: str = "LLM", connection_alert: str = None) -> bool:
         """
         Thuc thi chuoi cac action trong plan_data.
         
@@ -81,6 +85,10 @@ class SkillExecutor:
         thought: str = plan_data.get("thought", "")
 
         self._log("\n" + "=" * 65)
+        if connection_alert:
+            self._log(connection_alert)
+            self._log("-" * 65)
+
         self._log("USER COMMAND:")
         self._log(f"  {user_command}")
         self._log("-" * 65)
@@ -111,6 +119,10 @@ class SkillExecutor:
                     status = self.skills.pick(step.get("object"))
                 elif skill_name == "place":
                     status = self.skills.place(step.get("object"), step.get("zone"))
+                elif skill_name == "clear_zones":
+                    status = self.skills.clear_zones()
+                elif skill_name == "clear_zone":
+                    status = self.skills.clear_zone(step.get("zone"))
                 elif skill_name == "swap":
                     obj_a = step.get("object_a") or step.get("object1")
                     obj_b = step.get("object_b") or step.get("object2")

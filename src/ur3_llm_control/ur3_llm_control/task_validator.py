@@ -19,7 +19,9 @@ ALLOWED_SKILLS = {
     "swap",
     "stack",
     "reset_scene",
-    "inspect_scene"
+    "inspect_scene",
+    "clear_zones",
+    "clear_zone"
 }
 
 ALLOWED_OBJECTS = {
@@ -130,5 +132,14 @@ class TaskValidator:
                 zone = step.get("zone", "")
                 if not zone or zone not in self.allowed_zones:
                     return False, f"Buoc {idx}: Zone '{zone}' khong hop le! Cac vung hop le: {sorted(list(self.allowed_zones))}."
+
+            elif skill == "clear_zone":
+                zone = step.get("zone", "")
+                if zone and zone not in self.allowed_zones:
+                    return False, f"Buoc {idx}: Zone '{zone}' khong hop le trong clear_zone! Cac vung hop le: {sorted(list(self.allowed_zones))}."
+
+            elif skill == "clear_zones":
+                # Clear all zones does not require parameters
+                pass
 
         return True, "Kế hoạch hợp lệ 100% theo quy chuẩn."

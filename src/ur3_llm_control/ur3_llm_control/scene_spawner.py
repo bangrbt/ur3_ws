@@ -145,118 +145,125 @@ class SceneSpawner(Node):
         now = self.get_clock().now().to_msg()
         marker_id = 0
 
-        # 1. Ban thao tac (Work Table)
-        table = self.scene_config.get("table", {})
-        t_pos = table.get("position", [0.26, 0.0, -0.21])
-        t_size = table.get("size", [0.70, 0.90, 0.42])
+        # Helper tao Marker co ban
+        def make_marker(m_id, ns, m_type, pos, scale, color):
+            m = Marker()
+            m.header.frame_id = "base_link"
+            m.header.stamp = now
+            m.ns = ns
+            m.id = m_id
+            m.type = m_type
+            m.action = Marker.ADD
+            m.pose.position.x = float(pos[0])
+            m.pose.position.y = float(pos[1])
+            m.pose.position.z = float(pos[2])
+            m.pose.orientation.w = 1.0
+            m.scale.x = float(scale[0])
+            m.scale.y = float(scale[1])
+            m.scale.z = float(scale[2])
+            m.color.r = float(color[0])
+            m.color.g = float(color[1])
+            m.color.b = float(color[2])
+            m.color.a = float(color[3]) if len(color) > 3 else 1.0
+            return m
 
-        m_table = Marker()
-        m_table.header.frame_id = "base_link"
-        m_table.header.stamp = now
-        m_table.ns = "environment"
-        m_table.id = marker_id
+        # 1. Ban thao tac co khi thuc te (Mặt bàn, Khung viền, 4 Chân bàn, Giằng chân & Bệ đỡ Robot)
+        # 1.1 Mat ban cong nghiep (Tabletop)
+        msg.markers.append(make_marker(marker_id, "table", Marker.CUBE, [0.26, 0.0, -0.02], [0.70, 0.90, 0.04], [0.38, 0.40, 0.46, 1.0]))
         marker_id += 1
-        m_table.type = Marker.CUBE
-        m_table.action = Marker.ADD
-        m_table.pose.position.x = float(t_pos[0])
-        m_table.pose.position.y = float(t_pos[1])
-        m_table.pose.position.z = float(t_pos[2])
-        m_table.pose.orientation.w = 1.0
-        m_table.scale.x = float(t_size[0])
-        m_table.scale.y = float(t_size[1])
-        m_table.scale.z = float(t_size[2])
-        m_table.color.r = 0.28
-        m_table.color.g = 0.30
-        m_table.color.b = 0.35
-        m_table.color.a = 0.95
-        msg.markers.append(m_table)
+        # 1.2 Khung nep vien kim loai bao quanh mat ban
+        msg.markers.append(make_marker(marker_id, "table", Marker.CUBE, [0.26, 0.0, -0.038], [0.72, 0.92, 0.01], [0.22, 0.24, 0.28, 1.0]))
+        marker_id += 1
+        # 1.3 Be kim loai tron do chan de Robot UR3
+        msg.markers.append(make_marker(marker_id, "table", Marker.CYLINDER, [0.0, 0.0, -0.01], [0.18, 0.18, 0.02], [0.58, 0.60, 0.65, 1.0]))
+        marker_id += 1
 
-        # 2. 3 Khay chua phoi ban dau (Source Trays)
-        source_trays = {
-            "tray_red": {"pos": [0.24, -0.11, 0.001], "color": [0.95, 0.2, 0.2, 0.35], "label": "TRAY RED"},
-            "tray_yellow": {"pos": [0.24, 0.00, 0.001], "color": [0.95, 0.85, 0.1, 0.35], "label": "TRAY YELLOW"},
-            "tray_blue": {"pos": [0.24, 0.11, 0.001], "color": [0.2, 0.5, 0.95, 0.35], "label": "TRAY BLUE"},
-        }
-        for t_name, t_data in source_trays.items():
-            m_tr = Marker()
-            m_tr.header.frame_id = "base_link"
-            m_tr.header.stamp = now
-            m_tr.ns = "source_trays"
-            m_tr.id = marker_id
+        # 1.4 4 Chan ban thep chiu luc tai 4 goc
+        leg_positions = [
+            [0.56, 0.40, -0.23],   # Truoc - Trai
+            [0.56, -0.40, -0.23],  # Truoc - Phai
+            [-0.04, 0.40, -0.23],  # Sau - Trai
+            [-0.04, -0.40, -0.23], # Sau - Phai
+        ]
+        for leg_pos in leg_positions:
+            # Than chan ban
+            msg.markers.append(make_marker(marker_id, "table_legs", Marker.CUBE, leg_pos, [0.05, 0.05, 0.38], [0.16, 0.17, 0.20, 1.0]))
             marker_id += 1
-            m_tr.type = Marker.CUBE
-            m_tr.action = Marker.ADD
-            m_tr.pose.position.x = t_data["pos"][0]
-            m_tr.pose.position.y = t_data["pos"][1]
-            m_tr.pose.position.z = t_data["pos"][2]
-            m_tr.pose.orientation.w = 1.0
-            m_tr.scale.x = 0.07
-            m_tr.scale.y = 0.07
-            m_tr.scale.z = 0.002
-            m_tr.color.r = t_data["color"][0]
-            m_tr.color.g = t_data["color"][1]
-            m_tr.color.b = t_data["color"][2]
-            m_tr.color.a = t_data["color"][3]
-            msg.markers.append(m_tr)
+            # De cao su chan ban chong truot
+            msg.markers.append(make_marker(marker_id, "table_feet", Marker.CUBE, [leg_pos[0], leg_pos[1], -0.4125], [0.07, 0.07, 0.015], [0.08, 0.08, 0.08, 1.0]))
+            marker_id += 1
 
-        # 3. 3 Khay Zone dich den (Target Zones) theo dung MSSV
+        # 1.5 Thanh giang ngang khung chan ban
+        msg.markers.append(make_marker(marker_id, "table_frame", Marker.CUBE, [0.26, 0.40, -0.32], [0.60, 0.03, 0.03], [0.16, 0.17, 0.20, 1.0]))
+        marker_id += 1
+        msg.markers.append(make_marker(marker_id, "table_frame", Marker.CUBE, [0.26, -0.40, -0.32], [0.60, 0.03, 0.03], [0.16, 0.17, 0.20, 1.0]))
+        marker_id += 1
+        msg.markers.append(make_marker(marker_id, "table_frame", Marker.CUBE, [-0.04, 0.0, -0.32], [0.03, 0.80, 0.03], [0.16, 0.17, 0.20, 1.0]))
+        marker_id += 1
+
+        # Helper tao khay chua 3D (Day khay + 4 Thanh vien nho cao tao long khay lom)
+        def add_3d_tray(cx, cy, base_color, rim_color, ns_name, label_text=None):
+            nonlocal marker_id
+            # 1. Day khay (Floor)
+            msg.markers.append(make_marker(marker_id, ns_name, Marker.CUBE, [cx, cy, 0.0015], [0.086, 0.086, 0.003], base_color))
+            marker_id += 1
+            # 2. Thanh vien truoc (Front rim)
+            msg.markers.append(make_marker(marker_id, ns_name, Marker.CUBE, [cx, cy - 0.0405, 0.006], [0.086, 0.005, 0.012], rim_color))
+            marker_id += 1
+            # 3. Thanh vien sau (Back rim)
+            msg.markers.append(make_marker(marker_id, ns_name, Marker.CUBE, [cx, cy + 0.0405, 0.006], [0.086, 0.005, 0.012], rim_color))
+            marker_id += 1
+            # 4. Thanh vien trai (Left rim)
+            msg.markers.append(make_marker(marker_id, ns_name, Marker.CUBE, [cx + 0.0405, cy, 0.006], [0.005, 0.076, 0.012], rim_color))
+            marker_id += 1
+            # 5. Thanh vien phai (Right rim)
+            msg.markers.append(make_marker(marker_id, ns_name, Marker.CUBE, [cx - 0.0405, cy, 0.006], [0.005, 0.076, 0.012], rim_color))
+            marker_id += 1
+
+            # 6. Nhan chu 3D
+            if label_text:
+                m_txt = Marker()
+                m_txt.header.frame_id = "base_link"
+                m_txt.header.stamp = now
+                m_txt.ns = f"{ns_name}_labels"
+                m_txt.id = marker_id
+                marker_id += 1
+                m_txt.type = Marker.TEXT_VIEW_FACING
+                m_txt.action = Marker.ADD
+                m_txt.pose.position.x = float(cx)
+                m_txt.pose.position.y = float(cy)
+                m_txt.pose.position.z = 0.038
+                m_txt.scale.z = 0.020
+                m_txt.color.r = 1.0
+                m_txt.color.g = 1.0
+                m_txt.color.b = 1.0
+                m_txt.color.a = 1.0
+                m_txt.text = label_text
+                msg.markers.append(m_txt)
+
+        # 2. 3 Khay chua phoi nguon ban dau (Source Trays tai X = 0.24m)
+        source_trays = {
+            "tray_red": {"pos": [0.24, -0.11], "base": [0.95, 0.2, 0.2, 0.55], "rim": [0.98, 0.3, 0.3, 0.95], "lbl": "TRAY RED"},
+            "tray_yellow": {"pos": [0.24, 0.00], "base": [0.95, 0.85, 0.1, 0.55], "rim": [0.98, 0.90, 0.2, 0.95], "lbl": "TRAY YELLOW"},
+            "tray_blue": {"pos": [0.24, 0.11], "base": [0.2, 0.5, 0.95, 0.55], "rim": [0.3, 0.6, 0.98, 0.95], "lbl": "TRAY BLUE"},
+        }
+        for t_name, t_info in source_trays.items():
+            add_3d_tray(t_info["pos"][0], t_info["pos"][1], t_info["base"], t_info["rim"], "source_trays", t_info["lbl"])
+
+        # 3. 3 Khay Zone dich den (Target Zone Trays tai X = 0.35m) theo dung MSSV
         color_lut = {
-            "red_cube": [0.95, 0.2, 0.2, 0.7],
-            "yellow_cube": [0.98, 0.85, 0.1, 0.7],
-            "blue_cube": [0.15, 0.45, 0.95, 0.7],
+            "red_cube": {"base": [0.95, 0.15, 0.15, 0.65], "rim": [0.98, 0.25, 0.25, 0.95]},
+            "yellow_cube": {"base": [0.98, 0.85, 0.1, 0.65], "rim": [1.0, 0.92, 0.2, 0.95]},
+            "blue_cube": {"base": [0.15, 0.45, 0.95, 0.65], "rim": [0.25, 0.55, 1.0, 0.95]},
         }
 
         for name, data in self.scene_config.get("zones", {}).items():
             pos = data.get("position", [0.35, 0.0, 0.001])
-            size = data.get("size", [0.085, 0.085, 0.003])
-            
-            # Neu la zone_a, b, c thi lay mau theo zone_mapping tinh tu MSSV
             target_cube = self.zone_mapping.get(name, "")
-            color = color_lut.get(target_cube, data.get("color", [0.5, 0.5, 0.5, 0.6]))
+            c_info = color_lut.get(target_cube, {"base": [0.55, 0.55, 0.55, 0.5], "rim": [0.7, 0.7, 0.7, 0.9]})
 
-            m_zone = Marker()
-            m_zone.header.frame_id = "base_link"
-            m_zone.header.stamp = now
-            m_zone.ns = "zones"
-            m_zone.id = marker_id
-            marker_id += 1
-            m_zone.type = Marker.CUBE
-            m_zone.action = Marker.ADD
-            m_zone.pose.position.x = float(pos[0])
-            m_zone.pose.position.y = float(pos[1])
-            m_zone.pose.position.z = float(pos[2])
-            m_zone.pose.orientation.w = 1.0
-            m_zone.scale.x = float(size[0])
-            m_zone.scale.y = float(size[1])
-            m_zone.scale.z = float(size[2])
-            m_zone.color.r = float(color[0])
-            m_zone.color.g = float(color[1])
-            m_zone.color.b = float(color[2])
-            m_zone.color.a = float(color[3])
-            msg.markers.append(m_zone)
-
-            # Text Label cho Zone
-            m_text = Marker()
-            m_text.header.frame_id = "base_link"
-            m_text.header.stamp = now
-            m_text.ns = "zone_labels"
-            m_text.id = marker_id
-            marker_id += 1
-            m_text.type = Marker.TEXT_VIEW_FACING
-            m_text.action = Marker.ADD
-            m_text.pose.position.x = float(pos[0])
-            m_text.pose.position.y = float(pos[1])
-            m_text.pose.position.z = float(pos[2]) + 0.035
-            m_text.scale.z = 0.022
-            m_text.color.r = 1.0
-            m_text.color.g = 1.0
-            m_text.color.b = 1.0
-            m_text.color.a = 1.0
-            if target_cube:
-                m_text.text = f"{name.upper()}\n({target_cube.replace('_cube', '').upper()})"
-            else:
-                m_text.text = name.upper()
-            msg.markers.append(m_text)
+            lbl = f"{name.upper()}\n({target_cube.replace('_cube', '').upper()})" if target_cube else name.upper()
+            add_3d_tray(pos[0], pos[1], c_info["base"], c_info["rim"], "zone_trays", lbl)
 
         # 4. 3 Khoi hop (Cubes)
         for name, data in self.scene_config.get("objects", {}).items():

@@ -466,6 +466,86 @@ class RobotSkills:
 
         return "SUCCESS"
 
+    def _return_object_to_tray(self, object_name: str) -> str:
+        """Gap 1 vat the ra khoi vung va hoan tra ve khay chua phoi ban dau."""
+        if object_name not in self.objects_config:
+            return "INVALID_OBJECT"
+
+        init_pos = self.objects_config[object_name].get("initial_position", [0.24, 0.0, 0.02])
+
+        # 1. Gap vat the
+        pick_status = self.pick(object_name)
+        if pick_status != "SUCCESS":
+            return pick_status
+
+        # 2. Tiep can tren khong cua khay chua ban dau
+        tray_approach = Pose()
+        tray_approach.position.x = init_pos[0]
+        tray_approach.position.y = init_pos[1]
+        tray_approach.position.z = self.approach_height
+        tray_approach.orientation = self.top_down_quaternion
+
+        if not self._move_cartesian([tray_approach]):
+            if not self._move_to_pose_target(tray_approach):
+                return "PLANNING_FAILED"
+
+        # 3. Ha dat vat xuong khay
+        tray_place = Pose()
+        tray_place.position.x = init_pos[0]
+        tray_place.position.y = init_pos[1]
+        tray_place.position.z = self.place_height
+        tray_place.orientation = self.top_down_quaternion
+
+        if not self._move_cartesian([tray_place]):
+            if not self._move_to_pose_target(tray_place):
+                return "PLANNING_FAILED"
+
+        # 4. Mo kep de nha vat
+        self.open_gripper()
+        self._set_gazebo_model_pose(object_name, init_pos[0], init_pos[1], init_pos[2])
+        self.object_positions[object_name] = list(init_pos)
+        self._publish_dynamic_cube_state()
+
+        # 5. Nhac kep len cao
+        if not self._move_cartesian([tray_approach]):
+            self._move_to_pose_target(tray_approach)
+
+        return "SUCCESS"
+
+    def clear_zone(self, zone_name: str) -> str:
+        """Gap vat the dang nam trong 1 zone ra ngoai va tra ve khay chua ban dau."""
+        self.node.get_logger().info(f"Thuc thi Skill: clear_zone({zone_name})")
+        occupant = self.zone_occupants.get(zone_name)
+        if occupant is None:
+            self.node.get_logger().info(f"Vung '{zone_name}' da trong, khong can don.")
+            return "SUCCESS"
+
+        self.node.get_logger().info(f"Dang gap '{occupant}' ra khoi '{zone_name}' de tra ve khay...")
+        res = self._return_object_to_tray(occupant)
+        if res == "SUCCESS":
+            self.zone_occupants[zone_name] = None
+        return res
+
+    def clear_zones(self) -> str:
+        """Gap tat ca cac vat the dang nam trong cac vung (Zone) tra ve khay chua ban dau."""
+        self.node.get_logger().info("Thuc thi Skill: clear_zones() - Don sach cac vung truoc khi sap xep")
+        occupied_zones = [z for z, occ in self.zone_occupants.items() if occ is not None]
+        if not occupied_zones:
+            self.node.get_logger().info("Tat ca cac vung deu dang trong. San sang sap xep!")
+            return "SUCCESS"
+
+        for z in occupied_zones:
+            occ = self.zone_occupants.get(z)
+            if occ:
+                self.node.get_logger().info(f"[CLEAR] Gap '{occ}' ra khoi '{z}' ve khay ban dau...")
+                res = self._return_object_to_tray(occ)
+                if res != "SUCCESS":
+                    return res
+                self.zone_occupants[z] = None
+
+        self.home()
+        return "SUCCESS"
+
     def reset_scene(self) -> str:
         """
         Skill nang cao: Tra toan bo 3 khoi hop ve 3 khay phoi ban dau tren ban.
