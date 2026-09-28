@@ -8,14 +8,16 @@ Scene Spawner Node:
 """
 
 import os
+import json
 import yaml
 import rclpy
 from rclpy.node import Node
+from std_msgs.msg import String
 from geometry_msgs.msg import TransformStamped, Point, Pose
 from visualization_msgs.msg import Marker, MarkerArray
 from moveit_msgs.msg import PlanningScene, CollisionObject
 from shape_msgs.msg import SolidPrimitive
-from tf2_ros import StaticTransformBroadcaster
+from tf2_ros import StaticTransformBroadcaster, TransformBroadcaster
 
 
 class SceneSpawner(Node):
@@ -35,23 +37,48 @@ class SceneSpawner(Node):
         self.scene_config = self._load_yaml(os.path.join(config_dir, "scene.yaml"))
         self.student_config = self._load_yaml(os.path.join(config_dir, "student_config.yaml"))
 
+        # Toa do dong cua cac khoi hop
+        self.cube_positions = {}
+        for name, data in self.scene_config.get("objects", {}).items():
+            self.cube_positions[name] = list(data.get("initial_position", [0.3, 0.0, 0.02]))
+
         # Publishers & Broadcasters
         self.marker_pub = self.create_publisher(MarkerArray, "/scene_markers", 10)
         self.planning_scene_pub = self.create_publisher(PlanningScene, "/planning_scene", 10)
-        self.tf_broadcaster = StaticTransformBroadcaster(self)
+        self.static_tf_broadcaster = StaticTransformBroadcaster(self)
+        self.dynamic_tf_broadcaster = TransformBroadcaster(self)
 
-        # 1. Phat Static TF dung 1 lan duy nhat voi timestamp 0 (hop le cho moi thoi diem)
-        self._publish_tf()
+        # Subscriber nhan cap nhat trang thai vat the dong tu RobotSkills
+        self.cube_state_sub = self.create_subscription(
+            String, "/scene/cube_states", self._cube_states_cb, 10
+        )
 
-        # 2. Timer dinh ky chi de refresh markers tren RViz (2s/lan)
-        self.timer = self.create_timer(2.0, self._publish_markers)
+        # 1. Phat Static TF cho Zones
+        self._publish_static_tf()
+        # 2. Phat Dynamic TF cho Cubes
+        self._publish_dynamic_tf()
 
-        # 3. Phat collision objects sau 2 giay va 5 giay de chac chan MoveIt da san sang
+        # 3. Timer dinh ky refresh markers tren RViz (1s/lan)
+        self.timer = self.create_timer(1.0, self._publish_markers)
+
+        # 4. Phat collision objects sau 2 giay va 5 giay de chac chan MoveIt da san sang
         self.create_timer(2.0, self._publish_collision_objects_once)
         self.create_timer(5.0, self._publish_collision_objects_once)
         self.collision_published = False
 
-        self.get_logger().info("Scene Spawner da san sang (Markers, Collision Objects, TF)!")
+        self.get_logger().info("Scene Spawner da san sang (Markers, Dynamic TF, Collision Objects)!")
+
+    def _cube_states_cb(self, msg: String):
+        """Cap nhat vi tri vat the khi robot thao tac pick/place."""
+        try:
+            data = json.loads(msg.data)
+            for name, pos in data.items():
+                if name in self.cube_positions:
+                    self.cube_positions[name] = [float(pos[0]), float(pos[1]), float(pos[2])]
+            self._publish_markers()
+            self._publish_dynamic_tf()
+        except Exception:
+            pass
 
     def _load_yaml(self, filepath: str) -> dict:
         if os.path.exists(filepath):
@@ -61,29 +88,16 @@ class SceneSpawner(Node):
 
     def publish_all(self):
         """Phat toan bo Markers, TF va PlanningScene CollisionObjects."""
-        self._publish_tf()
+        self._publish_static_tf()
+        self._publish_dynamic_tf()
         self._publish_markers()
         self._publish_collision_objects_once()
 
-    def _publish_tf(self):
-        """Phat TF frames cho cac vat va vung tren ban voi timestamp 0 (luon hop le)."""
+    def _publish_static_tf(self):
+        """Phat Static TF cho cac vung Zone (khong doi vi tri)."""
         transforms = []
         zero_stamp = rclpy.time.Time().to_msg()
 
-        # TF cho Cubes
-        for name, data in self.scene_config.get("objects", {}).items():
-            pos = data.get("initial_position", [0.3, 0.0, 0.02])
-            t = TransformStamped()
-            t.header.stamp = zero_stamp
-            t.header.frame_id = "base_link"
-            t.child_frame_id = name
-            t.transform.translation.x = float(pos[0])
-            t.transform.translation.y = float(pos[1])
-            t.transform.translation.z = float(pos[2])
-            t.transform.rotation.w = 1.0
-            transforms.append(t)
-
-        # TF cho Zones
         for name, data in self.scene_config.get("zones", {}).items():
             pos = data.get("position", [0.4, 0.0, 0.001])
             t = TransformStamped()
@@ -97,7 +111,26 @@ class SceneSpawner(Node):
             transforms.append(t)
 
         if transforms:
-            self.tf_broadcaster.sendTransform(transforms)
+            self.static_tf_broadcaster.sendTransform(transforms)
+
+    def _publish_dynamic_tf(self):
+        """Phat Dynamic TF cho cac vat the Cube theo toa do thuc te."""
+        transforms = []
+        now = self.get_clock().now().to_msg()
+
+        for name, pos in self.cube_positions.items():
+            t = TransformStamped()
+            t.header.stamp = now
+            t.header.frame_id = "base_link"
+            t.child_frame_id = name
+            t.transform.translation.x = float(pos[0])
+            t.transform.translation.y = float(pos[1])
+            t.transform.translation.z = float(pos[2])
+            t.transform.rotation.w = 1.0
+            transforms.append(t)
+
+        if transforms:
+            self.dynamic_tf_broadcaster.sendTransform(transforms)
 
     def _publish_markers(self):
         """Phat Visualization Markers len RViz."""
@@ -181,7 +214,7 @@ class SceneSpawner(Node):
 
         # 3. 3 Khoi hop (Cubes)
         for name, data in self.scene_config.get("objects", {}).items():
-            pos = data.get("initial_position", [0.3, 0.0, 0.02])
+            pos = self.cube_positions.get(name, data.get("initial_position", [0.3, 0.0, 0.02]))
             size = data.get("size", [0.04, 0.04, 0.04])
             color = data.get("color", [0.9, 0.1, 0.1, 1.0])
 
@@ -215,7 +248,7 @@ class SceneSpawner(Node):
 
         # Ban lam viec la vat can (Collision Object) de robot khong dam xuyen ban
         table = self.scene_config.get("table", {})
-        t_pos = table.get("position", [0.35, 0.0, -0.2])
+        t_pos = table.get("position", [0.35, 0.0, -0.21])
         t_size = table.get("size", [0.65, 0.85, 0.4])
 
         co_table = CollisionObject()
