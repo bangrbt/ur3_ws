@@ -23,7 +23,7 @@
     <!-- Giao dien va Goc nhin Camera mac dinh Gazebo huong ve ban thao tac -->
     <gui fullscreen="0">
       <camera name="user_camera">
-        <pose>1.1 -0.9 0.7 0 0.45 2.45</pose>
+        <pose>1.05 -0.85 0.65 0 0.45 2.45</pose>
         <view_controller>orbit</view_controller>
       </camera>
     </gui>
@@ -58,43 +58,57 @@
             </plane>
           </geometry>
           <material>
-            <ambient>0.75 0.75 0.78 1</ambient>
-            <diffuse>0.75 0.75 0.78 1</diffuse>
+            <ambient>0.72 0.72 0.75 1</ambient>
+            <diffuse>0.72 0.72 0.75 1</diffuse>
           </material>
         </visual>
       </link>
     </model>
 
-    <!-- Ban thao tac Robot (Industrial Workbench voi 4 chan thep va mat ban go/kim loai) -->
+    <!-- Ban thao tac Robot (Industrial Workbench hien dai) -->
     <model name="work_table">
       <static>true</static>
       <link name="table_link">
         <!-- Mat ban (Tabletop) day 4cm, mat tren nam tai Z = 0.0m -->
         <collision name="top_collision">
-          <pose>0.25 0.0 -0.02 0 0 0</pose>
+          <pose>0.26 0.0 -0.02 0 0 0</pose>
           <geometry>
             <box>
-              <size>0.80 1.05 0.04</size>
+              <size>0.70 0.90 0.04</size>
             </box>
           </geometry>
         </collision>
         <visual name="top_visual">
-          <pose>0.25 0.0 -0.02 0 0 0</pose>
+          <pose>0.26 0.0 -0.02 0 0 0</pose>
           <geometry>
             <box>
-              <size>0.80 1.05 0.04</size>
+              <size>0.70 0.90 0.04</size>
             </box>
           </geometry>
           <material>
-            <ambient>0.82 0.72 0.58 1.0</ambient> <!-- Mau go sang trang nha -->
-            <diffuse>0.82 0.72 0.58 1.0</diffuse>
-            <specular>0.2 0.2 0.2 1.0</specular>
+            <ambient>0.82 0.82 0.85 1.0</ambient> <!-- Xam bac cong nghiep sang trong, de quan sat -->
+            <diffuse>0.82 0.82 0.85 1.0</diffuse>
+            <specular>0.3 0.3 0.3 1.0</specular>
+          </material>
+        </visual>
+
+        <!-- Khung vien kim loai xung quanh mat ban -->
+        <visual name="top_border_visual">
+          <pose>0.26 0.0 -0.038 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.72 0.92 0.005</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.25 0.25 0.28 1.0</ambient>
+            <diffuse>0.25 0.25 0.28 1.0</diffuse>
           </material>
         </visual>
 
         <!-- Chan ban 1 -->
         <visual name="leg1_visual">
-          <pose>0.60 0.48 -0.34 0 0 0</pose>
+          <pose>0.55 0.40 -0.34 0 0 0</pose>
           <geometry>
             <cylinder>
               <radius>0.025</radius>
@@ -102,13 +116,13 @@
             </cylinder>
           </geometry>
           <material>
-            <ambient>0.2 0.2 0.2 1</ambient>
-            <diffuse>0.2 0.2 0.2 1</diffuse>
+            <ambient>0.25 0.25 0.28 1</ambient>
+            <diffuse>0.25 0.25 0.28 1</diffuse>
           </material>
         </visual>
         <!-- Chan ban 2 -->
         <visual name="leg2_visual">
-          <pose>0.60 -0.48 -0.34 0 0 0</pose>
+          <pose>0.55 -0.40 -0.34 0 0 0</pose>
           <geometry>
             <cylinder>
               <radius>0.025</radius>
@@ -116,13 +130,13 @@
             </cylinder>
           </geometry>
           <material>
-            <ambient>0.2 0.2 0.2 1</ambient>
-            <diffuse>0.2 0.2 0.2 1</diffuse>
+            <ambient>0.25 0.25 0.28 1</ambient>
+            <diffuse>0.25 0.25 0.28 1</diffuse>
           </material>
         </visual>
         <!-- Chan ban 3 -->
         <visual name="leg3_visual">
-          <pose>-0.10 0.48 -0.34 0 0 0</pose>
+          <pose>-0.03 0.40 -0.34 0 0 0</pose>
           <geometry>
             <cylinder>
               <radius>0.025</radius>
@@ -130,13 +144,13 @@
             </cylinder>
           </geometry>
           <material>
-            <ambient>0.2 0.2 0.2 1</ambient>
-            <diffuse>0.2 0.2 0.2 1</diffuse>
+            <ambient>0.25 0.25 0.28 1</ambient>
+            <diffuse>0.25 0.25 0.28 1</diffuse>
           </material>
         </visual>
         <!-- Chan ban 4 -->
         <visual name="leg4_visual">
-          <pose>-0.10 -0.48 -0.34 0 0 0</pose>
+          <pose>-0.03 -0.40 -0.34 0 0 0</pose>
           <geometry>
             <cylinder>
               <radius>0.025</radius>
@@ -144,74 +158,139 @@
             </cylinder>
           </geometry>
           <material>
-            <ambient>0.2 0.2 0.2 1</ambient>
-            <diffuse>0.2 0.2 0.2 1</diffuse>
+            <ambient>0.25 0.25 0.28 1</ambient>
+            <diffuse>0.25 0.25 0.28 1</diffuse>
           </material>
         </visual>
       </link>
     </model>
 
-    <!-- Vung A (Zone A - Tiep nhan Blue Cube theo MSSV) -->
+    <!-- ======================================================== -->
+    <!-- 3 KHAY CHUA PHOI BAN DAU (SOURCE TRAYS - X = 0.24m)      -->
+    <!-- ======================================================== -->
+
+    <!-- Khay chua Khoi Do -->
+    <model name="tray_red">
+      <static>true</static>
+      <pose>0.24 -0.11 0.001 0 0 0</pose>
+      <link name="tray_red_link">
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.07 0.07 0.002</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.95 0.3 0.3 0.4</ambient>
+            <diffuse>0.95 0.3 0.3 0.4</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Khay chua Khoi Vang -->
+    <model name="tray_yellow">
+      <static>true</static>
+      <pose>0.24 0.00 0.001 0 0 0</pose>
+      <link name="tray_yellow_link">
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.07 0.07 0.002</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.95 0.9 0.3 0.4</ambient>
+            <diffuse>0.95 0.9 0.3 0.4</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Khay chua Khoi Xanh lam -->
+    <model name="tray_blue">
+      <static>true</static>
+      <pose>0.24 0.11 0.001 0 0 0</pose>
+      <link name="tray_blue_link">
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.07 0.07 0.002</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.3 0.5 0.95 0.4</ambient>
+            <diffuse>0.3 0.5 0.95 0.4</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ======================================================== -->
+    <!-- 3 KHAY ZONE DICH DEN (TARGET ZONE TRAYS - X = 0.35m)     -->
+    <!-- ======================================================== -->
+
+    <!-- Vung A (Zone A) -->
     <model name="zone_a_pad">
       <static>true</static>
-      <pose>0.40 -0.12 0.001 0 0 0</pose>
+      <pose>0.35 -0.11 0.0015 0 0 0</pose>
       <link name="zone_a_link">
         <visual name="visual">
           <geometry>
             <box>
-              <size>0.08 0.08 0.002</size>
+              <size>0.085 0.085 0.003</size>
             </box>
           </geometry>
           <material>
-            <ambient>0.1 0.3 0.9 0.85</ambient>
-            <diffuse>0.1 0.3 0.9 0.85</diffuse>
+            <ambient>0.15 0.45 0.95 0.85</ambient>
+            <diffuse>0.15 0.45 0.95 0.85</diffuse>
           </material>
         </visual>
       </link>
     </model>
 
-    <!-- Vung B (Zone B - Tiep nhan Yellow Cube theo MSSV) -->
+    <!-- Vung B (Zone B) -->
     <model name="zone_b_pad">
       <static>true</static>
-      <pose>0.40 0.00 0.001 0 0 0</pose>
+      <pose>0.35 0.00 0.0015 0 0 0</pose>
       <link name="zone_b_link">
         <visual name="visual">
           <geometry>
             <box>
-              <size>0.08 0.08 0.002</size>
+              <size>0.085 0.085 0.003</size>
             </box>
           </geometry>
           <material>
-            <ambient>0.95 0.85 0.1 0.85</ambient>
-            <diffuse>0.95 0.85 0.1 0.85</diffuse>
+            <ambient>0.98 0.85 0.10 0.85</ambient>
+            <diffuse>0.98 0.85 0.10 0.85</diffuse>
           </material>
         </visual>
       </link>
     </model>
 
-    <!-- Vung C (Zone C - Tiep nhan Red Cube theo MSSV) -->
+    <!-- Vung C (Zone C) -->
     <model name="zone_c_pad">
       <static>true</static>
-      <pose>0.40 0.12 0.001 0 0 0</pose>
+      <pose>0.35 0.11 0.0015 0 0 0</pose>
       <link name="zone_c_link">
         <visual name="visual">
           <geometry>
             <box>
-              <size>0.08 0.08 0.002</size>
+              <size>0.085 0.085 0.003</size>
             </box>
           </geometry>
           <material>
-            <ambient>0.9 0.1 0.1 0.85</ambient>
-            <diffuse>0.9 0.1 0.1 0.85</diffuse>
+            <ambient>0.95 0.15 0.15 0.85</ambient>
+            <diffuse>0.95 0.15 0.15 0.85</diffuse>
           </material>
         </visual>
       </link>
     </model>
 
-    <!-- Vung Dem (Zone Temp - Mau xam) -->
+    <!-- Vung Dem (Zone Temp - Mau xam sang) -->
     <model name="zone_temp_pad">
       <static>true</static>
-      <pose>0.22 0.22 0.001 0 0 0</pose>
+      <pose>0.18 0.20 0.001 0 0 0</pose>
       <link name="zone_temp_link">
         <visual name="visual">
           <geometry>
@@ -220,16 +299,20 @@
             </box>
           </geometry>
           <material>
-            <ambient>0.5 0.5 0.5 0.85</ambient>
-            <diffuse>0.5 0.5 0.5 0.85</diffuse>
+            <ambient>0.65 0.65 0.68 0.85</ambient>
+            <diffuse>0.65 0.65 0.68 0.85</diffuse>
           </material>
         </visual>
       </link>
     </model>
 
+    <!-- ======================================================== -->
+    <!-- 3 KHOI HOP VAT THE (CUBES)                               -->
+    <!-- ======================================================== -->
+
     <!-- Khoi hop Do (red_cube) -->
     <model name="red_cube">
-      <pose>0.30 -0.12 0.02 0 0 0</pose>
+      <pose>0.24 -0.11 0.02 0 0 0</pose>
       <link name="link">
         <inertial>
           <mass>0.05</mass>
@@ -253,8 +336,8 @@
             </box>
           </geometry>
           <material>
-            <ambient>0.9 0.1 0.1 1.0</ambient>
-            <diffuse>0.9 0.1 0.1 1.0</diffuse>
+            <ambient>0.95 0.15 0.15 1.0</ambient>
+            <diffuse>0.95 0.15 0.15 1.0</diffuse>
           </material>
         </visual>
       </link>
@@ -262,7 +345,7 @@
 
     <!-- Khoi hop Vang (yellow_cube) -->
     <model name="yellow_cube">
-      <pose>0.30 0.00 0.02 0 0 0</pose>
+      <pose>0.24 0.00 0.02 0 0 0</pose>
       <link name="link">
         <inertial>
           <mass>0.05</mass>
@@ -286,8 +369,8 @@
             </box>
           </geometry>
           <material>
-            <ambient>0.95 0.85 0.1 1.0</ambient>
-            <diffuse>0.95 0.85 0.1 1.0</diffuse>
+            <ambient>0.98 0.85 0.05 1.0</ambient>
+            <diffuse>0.98 0.85 0.05 1.0</diffuse>
           </material>
         </visual>
       </link>
@@ -295,7 +378,7 @@
 
     <!-- Khoi hop Xanh lam (blue_cube) -->
     <model name="blue_cube">
-      <pose>0.30 0.12 0.02 0 0 0</pose>
+      <pose>0.24 0.11 0.02 0 0 0</pose>
       <link name="link">
         <inertial>
           <mass>0.05</mass>
@@ -319,8 +402,8 @@
             </box>
           </geometry>
           <material>
-            <ambient>0.1 0.3 0.9 1.0</ambient>
-            <diffuse>0.1 0.3 0.9 1.0</diffuse>
+            <ambient>0.10 0.45 0.95 1.0</ambient>
+            <diffuse>0.10 0.45 0.95 1.0</diffuse>
           </material>
         </visual>
       </link>

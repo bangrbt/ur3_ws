@@ -68,7 +68,7 @@ class LLMInteractiveNode(Node):
 
         self.get_logger().info("=" * 65)
         self.get_logger().info(f"Sinh vien: {self.planner.student_name} - MSSV: {self.planner.student_id}")
-        self.get_logger().info(f"Quy uoc P = {self.planner.p_value}: Zone A -> Blue, Zone B -> Yellow, Zone C -> Red")
+        self.get_logger().info(f"Quy uoc P = {self.planner.p_value}: Zone A -> {self.planner.zone_mapping['zone_a']}, Zone B -> {self.planner.zone_mapping['zone_b']}, Zone C -> {self.planner.zone_mapping['zone_c']}")
         self.get_logger().info("LLM Interactive Node da san sang!")
         self.get_logger().info("=" * 65)
 

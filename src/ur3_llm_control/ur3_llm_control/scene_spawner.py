@@ -3,7 +3,7 @@
 """
 Scene Spawner Node:
 1. Khoi tao va cap nhat vat can va vat the trong MoveIt 2 PlanningScene (CollisionObjects).
-2. Phat Marker Visualization 3D tren RViz (ban, 3 khoi hop mau, 3 vung mau kem chu thich Zone A, B, C theo MSSV).
+2. Phat Marker Visualization 3D tren RViz (ban, 3 khay phoi, 3 khoi hop, 3 khay zone A, B, C theo MSSV).
 3. Phat TF Frame cho tung vat the va tung Zone.
 """
 
@@ -18,6 +18,8 @@ from visualization_msgs.msg import Marker, MarkerArray
 from moveit_msgs.msg import PlanningScene, CollisionObject
 from shape_msgs.msg import SolidPrimitive
 from tf2_ros import StaticTransformBroadcaster, TransformBroadcaster
+
+from .student_utils import parse_student_info
 
 
 class SceneSpawner(Node):
@@ -37,10 +39,15 @@ class SceneSpawner(Node):
         self.scene_config = self._load_yaml(os.path.join(config_dir, "scene.yaml"))
         self.student_config = self._load_yaml(os.path.join(config_dir, "student_config.yaml"))
 
+        # Doc thong tin sinh vien va tu dong tinh P = XX mod 6
+        self.student_name = self.student_config.get("student_name", "Lê Anh Tuấn Bằng")
+        self.student_id = str(self.student_config.get("student_id", "23020723"))
+        self.xx, self.p_value, self.zone_mapping = parse_student_info(self.student_id)
+
         # Toa do dong cua cac khoi hop
         self.cube_positions = {}
         for name, data in self.scene_config.get("objects", {}).items():
-            self.cube_positions[name] = list(data.get("initial_position", [0.3, 0.0, 0.02]))
+            self.cube_positions[name] = list(data.get("initial_position", [0.24, 0.0, 0.02]))
 
         # Publishers & Broadcasters
         self.marker_pub = self.create_publisher(MarkerArray, "/scene_markers", 10)
@@ -66,7 +73,7 @@ class SceneSpawner(Node):
         self.create_timer(5.0, self._publish_collision_objects_once)
         self.collision_published = False
 
-        self.get_logger().info("Scene Spawner da san sang (Markers, Dynamic TF, Collision Objects)!")
+        self.get_logger().info(f"Scene Spawner: Sinh vien {self.student_name} - MSSV {self.student_id} (P={self.p_value})")
 
     def _cube_states_cb(self, msg: String):
         """Cap nhat vi tri vat the khi robot thao tac pick/place."""
@@ -99,7 +106,7 @@ class SceneSpawner(Node):
         zero_stamp = rclpy.time.Time().to_msg()
 
         for name, data in self.scene_config.get("zones", {}).items():
-            pos = data.get("position", [0.4, 0.0, 0.001])
+            pos = data.get("position", [0.35, 0.0, 0.001])
             t = TransformStamped()
             t.header.stamp = zero_stamp
             t.header.frame_id = "base_link"
@@ -133,15 +140,15 @@ class SceneSpawner(Node):
             self.dynamic_tf_broadcaster.sendTransform(transforms)
 
     def _publish_markers(self):
-        """Phat Visualization Markers len RViz."""
+        """Phat Visualization Markers len RViz day du, dep va noi bat."""
         msg = MarkerArray()
         now = self.get_clock().now().to_msg()
         marker_id = 0
 
         # 1. Ban thao tac (Work Table)
         table = self.scene_config.get("table", {})
-        t_pos = table.get("position", [0.35, 0.0, -0.2])
-        t_size = table.get("size", [0.65, 0.85, 0.4])
+        t_pos = table.get("position", [0.26, 0.0, -0.21])
+        t_size = table.get("size", [0.70, 0.90, 0.42])
 
         m_table = Marker()
         m_table.header.frame_id = "base_link"
@@ -158,17 +165,54 @@ class SceneSpawner(Node):
         m_table.scale.x = float(t_size[0])
         m_table.scale.y = float(t_size[1])
         m_table.scale.z = float(t_size[2])
-        m_table.color.r = 0.35
-        m_table.color.g = 0.35
-        m_table.color.b = 0.38
+        m_table.color.r = 0.28
+        m_table.color.g = 0.30
+        m_table.color.b = 0.35
         m_table.color.a = 0.95
         msg.markers.append(m_table)
 
-        # 2. Cac Vung (Zones) va Nhan text
+        # 2. 3 Khay chua phoi ban dau (Source Trays)
+        source_trays = {
+            "tray_red": {"pos": [0.24, -0.11, 0.001], "color": [0.95, 0.2, 0.2, 0.35], "label": "TRAY RED"},
+            "tray_yellow": {"pos": [0.24, 0.00, 0.001], "color": [0.95, 0.85, 0.1, 0.35], "label": "TRAY YELLOW"},
+            "tray_blue": {"pos": [0.24, 0.11, 0.001], "color": [0.2, 0.5, 0.95, 0.35], "label": "TRAY BLUE"},
+        }
+        for t_name, t_data in source_trays.items():
+            m_tr = Marker()
+            m_tr.header.frame_id = "base_link"
+            m_tr.header.stamp = now
+            m_tr.ns = "source_trays"
+            m_tr.id = marker_id
+            marker_id += 1
+            m_tr.type = Marker.CUBE
+            m_tr.action = Marker.ADD
+            m_tr.pose.position.x = t_data["pos"][0]
+            m_tr.pose.position.y = t_data["pos"][1]
+            m_tr.pose.position.z = t_data["pos"][2]
+            m_tr.pose.orientation.w = 1.0
+            m_tr.scale.x = 0.07
+            m_tr.scale.y = 0.07
+            m_tr.scale.z = 0.002
+            m_tr.color.r = t_data["color"][0]
+            m_tr.color.g = t_data["color"][1]
+            m_tr.color.b = t_data["color"][2]
+            m_tr.color.a = t_data["color"][3]
+            msg.markers.append(m_tr)
+
+        # 3. 3 Khay Zone dich den (Target Zones) theo dung MSSV
+        color_lut = {
+            "red_cube": [0.95, 0.2, 0.2, 0.7],
+            "yellow_cube": [0.98, 0.85, 0.1, 0.7],
+            "blue_cube": [0.15, 0.45, 0.95, 0.7],
+        }
+
         for name, data in self.scene_config.get("zones", {}).items():
-            pos = data.get("position", [0.4, 0.0, 0.001])
-            size = data.get("size", [0.08, 0.08, 0.002])
-            color = data.get("color", [0.5, 0.5, 0.5, 0.6])
+            pos = data.get("position", [0.35, 0.0, 0.001])
+            size = data.get("size", [0.085, 0.085, 0.003])
+            
+            # Neu la zone_a, b, c thi lay mau theo zone_mapping tinh tu MSSV
+            target_cube = self.zone_mapping.get(name, "")
+            color = color_lut.get(target_cube, data.get("color", [0.5, 0.5, 0.5, 0.6]))
 
             m_zone = Marker()
             m_zone.header.frame_id = "base_link"
@@ -202,19 +246,21 @@ class SceneSpawner(Node):
             m_text.action = Marker.ADD
             m_text.pose.position.x = float(pos[0])
             m_text.pose.position.y = float(pos[1])
-            m_text.pose.position.z = float(pos[2]) + 0.03
+            m_text.pose.position.z = float(pos[2]) + 0.035
             m_text.scale.z = 0.022
             m_text.color.r = 1.0
             m_text.color.g = 1.0
             m_text.color.b = 1.0
             m_text.color.a = 1.0
-            target_obj = data.get("target_object", "")
-            m_text.text = f"{name.upper()}\n({target_obj.replace('_cube', '')})"
+            if target_cube:
+                m_text.text = f"{name.upper()}\n({target_cube.replace('_cube', '').upper()})"
+            else:
+                m_text.text = name.upper()
             msg.markers.append(m_text)
 
-        # 3. 3 Khoi hop (Cubes)
+        # 4. 3 Khoi hop (Cubes)
         for name, data in self.scene_config.get("objects", {}).items():
-            pos = self.cube_positions.get(name, data.get("initial_position", [0.3, 0.0, 0.02]))
+            pos = self.cube_positions.get(name, data.get("initial_position", [0.24, 0.0, 0.02]))
             size = data.get("size", [0.04, 0.04, 0.04])
             color = data.get("color", [0.9, 0.1, 0.1, 1.0])
 
@@ -239,6 +285,26 @@ class SceneSpawner(Node):
             m_cube.color.a = float(color[3])
             msg.markers.append(m_cube)
 
+        # 5. Banner chu thich tren khong: Thong tin sinh vien & MSSV
+        m_banner = Marker()
+        m_banner.header.frame_id = "base_link"
+        m_banner.header.stamp = now
+        m_banner.ns = "student_banner"
+        m_banner.id = marker_id
+        marker_id += 1
+        m_banner.type = Marker.TEXT_VIEW_FACING
+        m_banner.action = Marker.ADD
+        m_banner.pose.position.x = 0.30
+        m_banner.pose.position.y = 0.0
+        m_banner.pose.position.z = 0.38
+        m_banner.scale.z = 0.026
+        m_banner.color.r = 0.2
+        m_banner.color.g = 1.0
+        m_banner.color.b = 0.4
+        m_banner.color.a = 0.95
+        m_banner.text = f"SV: {self.student_name} | MSSV: {self.student_id} (P={self.p_value})"
+        msg.markers.append(m_banner)
+
         self.marker_pub.publish(msg)
 
     def _publish_collision_objects_once(self):
@@ -246,10 +312,9 @@ class SceneSpawner(Node):
         ps = PlanningScene()
         ps.is_diff = True
 
-        # Ban lam viec la vat can (Collision Object) de robot khong dam xuyen ban
         table = self.scene_config.get("table", {})
-        t_pos = table.get("position", [0.35, 0.0, -0.21])
-        t_size = table.get("size", [0.65, 0.85, 0.4])
+        t_pos = table.get("position", [0.26, 0.0, -0.21])
+        t_size = table.get("size", [0.70, 0.90, 0.42])
 
         co_table = CollisionObject()
         co_table.header.frame_id = "base_link"

@@ -2,19 +2,24 @@
 # -*- coding: utf-8 -*-
 """
 Robot Skills Library:
-Tap hop cac ky nang nguyen thuy (Primitive Skills) dieu khien robot UR3/UR3e
-thong qua MoveIt 2, ket hop dong bo vi tri vat the vat ly tren Gazebo va RViz.
+Tap hop cac ky nang nguyen thuy va nang cao (Primitive & Advanced Skills)
+dieu khien robot UR3/UR3e thong qua MoveIt 2, ket hop dong bo vi tri vat the
+vat ly tren Gazebo va RViz.
 
-Cac skill toi thieu:
+Cac skill co ban:
 - home()
 - pick(object)
 - place(object, zone)
-Cac skill bo sung:
-- move_above(object)
+- move_above(target)
+- move_to_zone(zone)
 - open_gripper()
 - close_gripper(object)
-- move_to_zone(zone)
-- inspect_state()
+
+Cac skill nang cao:
+- swap(object_a, object_b): Hoan doi 2 vat the su dung zone_temp
+- stack(object_top, object_bottom): Xep chong vat the
+- reset_scene(): Dua tat ca cac khoi hop ve lai 3 khay phoi ban dau
+- inspect_scene(): Tra cuu trang thai toan bo khong gian lam viec
 
 Moi skill tra ve trang thai thuc thi: SUCCESS, FAILED, INVALID_OBJECT, PLANNING_FAILED
 """
@@ -49,7 +54,7 @@ from tf2_ros import Buffer, TransformListener
 
 
 class RobotSkills:
-    """Thu vien ky nang MoveIt 2 cho canh tay UR3 voi quy dao toi uu va dong bo vat the."""
+    """Thu vien ky nang MoveIt 2 cho canh tay UR3 voi toc do nhanh, quy dao toi uu va chong chong de vat the."""
 
     def __init__(self, node: Node, scene_config: dict):
         self.node = node
@@ -63,7 +68,10 @@ class RobotSkills:
         # Toa do vi tri cac vat the hien tai (duoc cap nhat dong khi pick/place)
         self.object_positions = {}
         for obj_name, obj_data in self.objects_config.items():
-            self.object_positions[obj_name] = list(obj_data.get("initial_position", [0.3, 0.0, 0.02]))
+            self.object_positions[obj_name] = list(obj_data.get("initial_position", [0.24, 0.0, 0.02]))
+
+        # Theo doi vat the hien dang chiem giu tai tung Zone (de tranh chong de)
+        self.zone_occupants = {z_name: None for z_name in self.zones_config}
 
         self.holding_object = None  # Vat the robot dang kep
 
@@ -98,6 +106,9 @@ class RobotSkills:
         self.grasp_height = float(self.motion_params.get("grasp_height", 0.04))
         self.place_height = float(self.motion_params.get("place_height", 0.04))
         self.home_joints = list(self.motion_params.get("home_joints", [0.0, -1.3, 1.5, -1.7, -1.57, 0.0]))
+
+        # Van toc toi da khi di chuyen duong thang Cartesian (tang toc do muot ma)
+        self.cartesian_max_vel = float(self.motion_params.get("cartesian_speed", 1.2))
 
         self.joint_names = [
             "shoulder_pan_joint",
@@ -163,7 +174,6 @@ class RobotSkills:
             current = self.current_joint_positions.get(name, goal)
             diff = (goal - current + math.pi) % (2.0 * math.pi) - math.pi
             target = current + diff
-            # Gioi han trong dai khop UR3 [-6.20, 6.20]
             target = max(-6.20, min(6.20, target))
             unwrapped.append(target)
         return unwrapped
@@ -184,7 +194,7 @@ class RobotSkills:
         if self.holding_object:
             self._detach_object_from_robot(self.holding_object)
             self.holding_object = None
-        time.sleep(0.3)
+        time.sleep(0.15)
         return "SUCCESS"
 
     def close_gripper(self, object_name: str = None) -> str:
@@ -193,7 +203,7 @@ class RobotSkills:
         if object_name:
             self._attach_object_to_robot(object_name)
             self.holding_object = object_name
-        time.sleep(0.3)
+        time.sleep(0.15)
         return "SUCCESS"
 
     def move_above(self, target_name: str) -> str:
@@ -223,11 +233,12 @@ class RobotSkills:
         """
         Chu trinh gap vat hoan chinh:
         1. Kiem tra tinh hop le
-        2. Mo kep
-        3. Tiep can tren khong (Cartesian / Move)
-        4. Ha kep Cartesian xuong vat (thang dung tuyet doi)
-        5. Dong kep (Dinh kem vat the & dong bo vi tri Gazebo)
-        6. Nhac vat len cao (Cartesian thang dung)
+        2. Giai phong zone dang giu vat (neu co)
+        3. Mo kep
+        4. Tiep can tren khong (Cartesian nhanh)
+        5. Ha kep Cartesian xuong vat (thang dung tuyet doi)
+        6. Dong kep (Dinh kem vat the & dong bo vi tri Gazebo)
+        7. Nhac vat len cao (Cartesian thang dung)
         """
         self.node.get_logger().info(f"Thuc thi Skill: pick({object_name})")
         if object_name not in self.objects_config:
@@ -241,6 +252,11 @@ class RobotSkills:
         obj_xy = self.object_positions.get(object_name)
         if obj_xy is None:
             return "INVALID_OBJECT"
+
+        # Giai phong khoi zone cu neu vat tung duoc dat o zone do
+        for z, occupant in list(self.zone_occupants.items()):
+            if occupant == object_name:
+                self.zone_occupants[z] = None
 
         # 1. Mo kep
         self.open_gripper()
@@ -286,11 +302,12 @@ class RobotSkills:
         """
         Chu trinh dat vat hoan chinh:
         1. Kiem tra tinh hop le
-        2. Di chuyen tren khong toi Zone (Cartesian Transfer ngang)
-        3. Ha vat xuong mat ban (Cartesian Descend)
-        4. Mo kep (Nha vat & dong bo vi tri dat on dinh trong Gazebo)
-        5. Nhac kep len cao (Cartesian Retract)
-        6. Cap nhat toa do vat the ve Zone
+        2. Tinh toan toa do dat (tu dong tranh chong de neu o da co vat khac)
+        3. Di chuyen tren khong toi Zone (Cartesian Transfer ngang)
+        4. Ha vat xuong mat ban (Cartesian Descend)
+        5. Mo kep (Nha vat & dat on dinh trong Gazebo)
+        6. Nhac kep len cao (Cartesian Retract)
+        7. Cap nhat toa do vat the va trang thai zone
         """
         self.node.get_logger().info(f"Thuc thi Skill: place({object_name}, {zone_name})")
         if object_name not in self.objects_config:
@@ -304,12 +321,18 @@ class RobotSkills:
             return "FAILED"
 
         zone_data = self.zones_config[zone_name]
-        zone_pos = zone_data.get("position", [0.4, 0.0, 0.001])
+        zone_pos = zone_data.get("position", [0.35, 0.0, 0.001])
+
+        # Neu Zone da co vat khac, dat lech 0.032m theo truc Y de khong bi chong de len nhau
+        occupied_by = self.zone_occupants.get(zone_name)
+        offset_y = 0.032 if (occupied_by is not None and occupied_by != object_name) else 0.0
+        target_x = zone_pos[0]
+        target_y = zone_pos[1] + offset_y
 
         # 1. Tiep can tren khong cua Zone (Di chuyen duong thang Cartesian ngang)
         zone_approach_pose = Pose()
-        zone_approach_pose.position.x = zone_pos[0]
-        zone_approach_pose.position.y = zone_pos[1]
+        zone_approach_pose.position.x = target_x
+        zone_approach_pose.position.y = target_y
         zone_approach_pose.position.z = self.approach_height
         zone_approach_pose.orientation = self.top_down_quaternion
 
@@ -317,14 +340,14 @@ class RobotSkills:
             if not self._move_to_pose_target(zone_approach_pose):
                 return "PLANNING_FAILED"
 
-        self._set_gazebo_model_pose(object_name, zone_pos[0], zone_pos[1], self.approach_height)
-        self.object_positions[object_name] = [zone_pos[0], zone_pos[1], self.approach_height]
+        self._set_gazebo_model_pose(object_name, target_x, target_y, self.approach_height)
+        self.object_positions[object_name] = [target_x, target_y, self.approach_height]
         self._publish_dynamic_cube_state()
 
         # 2. Ha dat vat xuong mat ban (Cartesian thang dung)
         place_pose = Pose()
-        place_pose.position.x = zone_pos[0]
-        place_pose.position.y = zone_pos[1]
+        place_pose.position.x = target_x
+        place_pose.position.y = target_y
         place_pose.position.z = self.place_height
         place_pose.orientation = self.top_down_quaternion
 
@@ -334,8 +357,9 @@ class RobotSkills:
 
         # 3. Mo kep (Nha vat & dat vat on dinh len mat Zone)
         self.open_gripper()
-        final_pos = [zone_pos[0], zone_pos[1], 0.02]
+        final_pos = [target_x, target_y, 0.02]
         self.object_positions[object_name] = final_pos
+        self.zone_occupants[zone_name] = object_name
         self._set_gazebo_model_pose(object_name, final_pos[0], final_pos[1], final_pos[2])
         self._publish_dynamic_cube_state()
 
@@ -345,11 +369,126 @@ class RobotSkills:
 
         return "SUCCESS"
 
-    def inspect_state(self) -> dict:
-        """Bao cao vi tri tat ca cac vat the va trang thai tay kep."""
+    # =========================================================================
+    # --- CAC SKILL NANG CAO (ADVANCED SKILLS) ---
+    # =========================================================================
+
+    def swap(self, object_a: str, object_b: str) -> str:
+        """
+        Skill nang cao: Hoan doi vi tri cua 2 vat the tren ban
+        thong qua vung dem trung gian zone_temp.
+        """
+        self.node.get_logger().info(f"Thuc thi Skill nang cao: swap({object_a}, {object_b})")
+        if object_a not in self.objects_config or object_b not in self.objects_config:
+            return "INVALID_OBJECT"
+
+        # Tim zone hien tai cua 2 vat (neu co)
+        zone_of_a = None
+        zone_of_b = None
+        for z, occupant in self.zone_occupants.items():
+            if occupant == object_a:
+                zone_of_a = z
+            elif occupant == object_b:
+                zone_of_b = z
+
+        # 1. Chuyen A vao zone_temp
+        if self.pick(object_a) != "SUCCESS":
+            return "FAILED"
+        if self.place(object_a, "zone_temp") != "SUCCESS":
+            return "FAILED"
+
+        # 2. Chuyen B vao vi tri cua A (hoac zone_a)
+        target_b_zone = zone_of_a if zone_of_a else "zone_a"
+        if self.pick(object_b) != "SUCCESS":
+            return "FAILED"
+        if self.place(object_b, target_b_zone) != "SUCCESS":
+            return "FAILED"
+
+        # 3. Chuyen A tu zone_temp vao vi tri cua B
+        target_a_zone = zone_of_b if zone_of_b else "zone_b"
+        if self.pick(object_a) != "SUCCESS":
+            return "FAILED"
+        if self.place(object_a, target_a_zone) != "SUCCESS":
+            return "FAILED"
+
+        self.home()
+        return "SUCCESS"
+
+    def stack(self, object_top: str, object_bottom: str) -> str:
+        """
+        Skill nang cao: Xep chong khoi hop object_top len tren dinh khoi hop object_bottom.
+        Do cao dat = 0.06m (4cm khoi duoi + 2cm tam khoi tren).
+        """
+        self.node.get_logger().info(f"Thuc thi Skill nang cao: stack({object_top}, {object_bottom})")
+        if object_top not in self.objects_config or object_bottom not in self.objects_config:
+            return "INVALID_OBJECT"
+
+        pos_bottom = self.object_positions.get(object_bottom)
+        if not pos_bottom:
+            return "INVALID_OBJECT"
+
+        # 1. Gap khoi tren
+        if self.pick(object_top) != "SUCCESS":
+            return "FAILED"
+
+        # 2. Di chuyen tren khong toi ngay tren dinh khoi duoi
+        stack_approach = Pose()
+        stack_approach.position.x = pos_bottom[0]
+        stack_approach.position.y = pos_bottom[1]
+        stack_approach.position.z = self.approach_height + 0.04
+        stack_approach.orientation = self.top_down_quaternion
+
+        if not self._move_cartesian([stack_approach]):
+            if not self._move_to_pose_target(stack_approach):
+                return "PLANNING_FAILED"
+
+        # 3. Ha kẹp xuong do cao xep chong (z = 0.06m)
+        stack_pose = Pose()
+        stack_pose.position.x = pos_bottom[0]
+        stack_pose.position.y = pos_bottom[1]
+        stack_pose.position.z = 0.06
+        stack_pose.orientation = self.top_down_quaternion
+
+        if not self._move_cartesian([stack_pose]):
+            if not self._move_to_pose_target(stack_pose):
+                return "PLANNING_FAILED"
+
+        # 4. Nha kep
+        self.open_gripper()
+        final_pos = [pos_bottom[0], pos_bottom[1], 0.06]
+        self.object_positions[object_top] = final_pos
+        self._set_gazebo_model_pose(object_top, final_pos[0], final_pos[1], final_pos[2])
+        self._publish_dynamic_cube_state()
+
+        # 5. Nhac kep len cao
+        if not self._move_cartesian([stack_approach]):
+            self._move_to_pose_target(stack_approach)
+
+        return "SUCCESS"
+
+    def reset_scene(self) -> str:
+        """
+        Skill nang cao: Tra toan bo 3 khoi hop ve 3 khay phoi ban dau tren ban.
+        """
+        self.node.get_logger().info("Thuc thi Skill nang cao: reset_scene()")
+        for name, data in self.objects_config.items():
+            init_pos = data.get("initial_position", [0.24, 0.0, 0.02])
+            self.object_positions[name] = list(init_pos)
+            self._set_gazebo_model_pose(name, init_pos[0], init_pos[1], init_pos[2])
+
+        for z in self.zone_occupants:
+            self.zone_occupants[z] = None
+
+        self._publish_dynamic_cube_state()
+        self.home()
+        return "SUCCESS"
+
+    def inspect_scene(self) -> dict:
+        """Bao cao vi tri tat ca cac vat the, trang thai zone va trang thai tay kep."""
         return {
             "holding": self.holding_object,
-            "positions": self.object_positions
+            "positions": self.object_positions,
+            "zone_occupants": self.zone_occupants
         }
 
     # =========================================================================
@@ -368,7 +507,7 @@ class RobotSkills:
         """Cho future hoan thanh ma khong gay deadlock hoac xung dot spin."""
         start_time = time.time()
         while not future.done() and (time.time() - start_time < timeout_sec):
-            time.sleep(0.02)
+            time.sleep(0.015)
         return future.done()
 
     def _move_to_joint_target(self, joint_values: list) -> bool:
@@ -383,8 +522,8 @@ class RobotSkills:
         goal_msg.request.group_name = "ur_manipulator"
         goal_msg.request.num_planning_attempts = 10
         goal_msg.request.allowed_planning_time = 5.0
-        goal_msg.request.max_velocity_scaling_factor = 0.5
-        goal_msg.request.max_acceleration_scaling_factor = 0.5
+        goal_msg.request.max_velocity_scaling_factor = 0.8
+        goal_msg.request.max_acceleration_scaling_factor = 0.7
         goal_msg.planning_options.plan_only = False
         goal_msg.planning_options.planning_scene_diff.is_diff = True
         goal_msg.request.start_state.is_diff = True
@@ -425,8 +564,8 @@ class RobotSkills:
         goal_msg.request.group_name = "ur_manipulator"
         goal_msg.request.num_planning_attempts = 15
         goal_msg.request.allowed_planning_time = 5.0
-        goal_msg.request.max_velocity_scaling_factor = 0.5
-        goal_msg.request.max_acceleration_scaling_factor = 0.5
+        goal_msg.request.max_velocity_scaling_factor = 0.8
+        goal_msg.request.max_acceleration_scaling_factor = 0.7
         goal_msg.planning_options.plan_only = False
         goal_msg.planning_options.planning_scene_diff.is_diff = True
         goal_msg.request.start_state.is_diff = True
@@ -500,7 +639,7 @@ class RobotSkills:
         return bool(result and result.result.error_code.val == 1)
 
     def _move_cartesian(self, waypoints: list) -> bool:
-        """Di chuyen duong thang Descartes mem mai, khong giat lag, tinh toan timestamp chuan."""
+        """Di chuyen duong thang Descartes mem mai, khong giat lag, toc do nhanh, tinh toan timestamp chuan."""
         if not self._cartesian_path_client.wait_for_service(timeout_sec=2.0):
             return False
 
@@ -533,7 +672,7 @@ class RobotSkills:
         if not res or res.fraction < 0.75:
             return False
 
-        # Thiet lap timestamp va van toc cho trajectory de joint_trajectory_controller chay em ai
+        # Thiet lap timestamp va van toc cho trajectory de joint_trajectory_controller chay em ai va nhanh
         traj = res.solution.joint_trajectory
         num_points = len(traj.points)
         if num_points == 0:
@@ -543,10 +682,10 @@ class RobotSkills:
         traj.points[0].time_from_start.sec = 0
         traj.points[0].time_from_start.nanosec = 0
         traj.points[0].velocities = [0.0] * len(traj.points[0].positions)
-        max_vel = 0.45  # rad/s
+        max_vel = self.cartesian_max_vel  # 1.2 rad/s (nhanh va dut khoat)
 
         for i in range(1, num_points):
-            dt = 0.03
+            dt = 0.015
             for j in range(len(traj.points[i].positions)):
                 dq = abs(traj.points[i].positions[j] - traj.points[i-1].positions[j])
                 t_j = dq / max_vel

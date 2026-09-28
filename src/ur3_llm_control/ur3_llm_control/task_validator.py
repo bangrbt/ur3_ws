@@ -16,7 +16,10 @@ ALLOWED_SKILLS = {
     "open_gripper",
     "close_gripper",
     "move_to_zone",
-    "inspect_state"
+    "swap",
+    "stack",
+    "reset_scene",
+    "inspect_scene"
 }
 
 ALLOWED_OBJECTS = {
@@ -96,6 +99,22 @@ class TaskValidator:
                 if simulated_holding != obj:
                     return False, f"Buoc {idx}: Xung dot logic - Robot hien khong giu '{obj}' (dang giu '{simulated_holding}'), khong the place!"
                 simulated_holding = None
+
+            elif skill == "swap":
+                obj_a = step.get("object_a") or step.get("object1", "")
+                obj_b = step.get("object_b") or step.get("object2", "")
+                if obj_a not in self.allowed_objects or obj_b not in self.allowed_objects:
+                    return False, f"Buoc {idx}: Swap can 2 vat the hop le (object_a, object_b)."
+                if obj_a == obj_b:
+                    return False, f"Buoc {idx}: Swap yeu cau 2 vat the khac nhau."
+
+            elif skill == "stack":
+                top = step.get("object_top") or step.get("top", "")
+                bottom = step.get("object_bottom") or step.get("bottom", "")
+                if top not in self.allowed_objects or bottom not in self.allowed_objects:
+                    return False, f"Buoc {idx}: Stack can vat 'object_top' va 'object_bottom' hop le."
+                if top == bottom:
+                    return False, f"Buoc {idx}: Khong the xep chong 1 vat len chinh no."
 
             elif skill == "move_above":
                 obj = step.get("object", "")

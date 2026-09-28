@@ -46,6 +46,18 @@ class SkillExecutor:
             return f"pick({step.get('object', '')})"
         elif skill == "place":
             return f"place({step.get('object', '')}, {step.get('zone', '')})"
+        elif skill == "swap":
+            obj_a = step.get("object_a") or step.get("object1", "")
+            obj_b = step.get("object_b") or step.get("object2", "")
+            return f"swap({obj_a}, {obj_b})"
+        elif skill == "stack":
+            top = step.get("object_top") or step.get("top", "")
+            bottom = step.get("object_bottom") or step.get("bottom", "")
+            return f"stack({top}, {bottom})"
+        elif skill == "reset_scene":
+            return "reset_scene()"
+        elif skill == "inspect_scene":
+            return "inspect_scene()"
         elif skill == "move_above":
             target = step.get("object") or step.get("zone", "")
             return f"move_above({target})"
@@ -99,6 +111,20 @@ class SkillExecutor:
                     status = self.skills.pick(step.get("object"))
                 elif skill_name == "place":
                     status = self.skills.place(step.get("object"), step.get("zone"))
+                elif skill_name == "swap":
+                    obj_a = step.get("object_a") or step.get("object1")
+                    obj_b = step.get("object_b") or step.get("object2")
+                    status = self.skills.swap(obj_a, obj_b)
+                elif skill_name == "stack":
+                    top = step.get("object_top") or step.get("top")
+                    bottom = step.get("object_bottom") or step.get("bottom")
+                    status = self.skills.stack(top, bottom)
+                elif skill_name == "reset_scene":
+                    status = self.skills.reset_scene()
+                elif skill_name == "inspect_scene":
+                    res = self.skills.inspect_scene()
+                    self._log(f"    Trang thai: {res}")
+                    status = "SUCCESS"
                 elif skill_name == "move_above":
                     target = step.get("object") or step.get("zone")
                     status = self.skills.move_above(target)
