@@ -35,9 +35,13 @@ class LLMInteractiveNode(Node):
 
         config_dir_param = self.get_parameter("config_dir").get_parameter_value().string_value
         if not config_dir_param:
-            config_dir_param = os.path.join(
-                os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config"
-            )
+            try:
+                from ament_index_python.packages import get_package_share_directory
+                config_dir_param = os.path.join(get_package_share_directory("ur3_llm_control"), "config")
+            except Exception:
+                config_dir_param = os.path.join(
+                    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config"
+                )
 
         # 1. Load Cau hinh Scene
         scene_file = os.path.join(config_dir_param, "scene.yaml")
@@ -48,7 +52,7 @@ class LLMInteractiveNode(Node):
         self.planner = LLMPlanner(config_dir=config_dir_param)
         self.validator = TaskValidator()
         self.skills = RobotSkills(self, self.scene_config)
-        self.executor = SkillExecutor(self.skills)
+        self.skill_executor = SkillExecutor(self.skills)
 
         # 3. Subscriber nhan cau lenh qua topic /user_command
         self.sub_cmd = self.create_subscription(
@@ -129,7 +133,7 @@ class LLMInteractiveNode(Node):
         print(f"[PLAN VALIDATOR] PASSED: {validation_msg}")
 
         # 3. Skill Executor thuc thi tung Robot Skill
-        self.executor.execute_plan(command, plan_dict, source_info=source_info)
+        self.skill_executor.execute_plan(command, plan_dict, source_info=source_info)
 
 
 def main(args=None):

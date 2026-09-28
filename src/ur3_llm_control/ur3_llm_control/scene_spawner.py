@@ -25,9 +25,13 @@ class SceneSpawner(Node):
         super().__init__("scene_spawner_node")
         self.get_logger().info("Khoi tao Scene Spawner Node...")
 
-        config_dir = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config"
-        )
+        try:
+            from ament_index_python.packages import get_package_share_directory
+            config_dir = os.path.join(get_package_share_directory("ur3_llm_control"), "config")
+        except Exception:
+            config_dir = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config"
+            )
         self.scene_config = self._load_yaml(os.path.join(config_dir, "scene.yaml"))
         self.student_config = self._load_yaml(os.path.join(config_dir, "student_config.yaml"))
 

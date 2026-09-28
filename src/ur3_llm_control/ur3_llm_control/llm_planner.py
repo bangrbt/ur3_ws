@@ -19,9 +19,15 @@ class LLMPlanner:
     """Module lap ke hoach nhiem vu su dung LLM qua 9Router."""
 
     def __init__(self, config_dir: str = None):
-        self.config_dir = config_dir or os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config"
-        )
+        if not config_dir:
+            try:
+                from ament_index_python.packages import get_package_share_directory
+                config_dir = os.path.join(get_package_share_directory("ur3_llm_control"), "config")
+            except Exception:
+                config_dir = os.path.join(
+                    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config"
+                )
+        self.config_dir = config_dir
         self.llm_config = self._load_yaml("llm_config.yaml")
         self.student_config = self._load_yaml("student_config.yaml")
         self.scene_config = self._load_yaml("scene.yaml")

@@ -16,8 +16,9 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, TimerAction
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
 
 
@@ -101,14 +102,85 @@ def generate_launch_description():
         condition=IfCondition(start_sim),
     )
 
-    # 4. RViz 2 hien thi giao dien 3D day du
+    # 4. RViz 2 parameters (robot_description, semantic, kinematics)
+    robot_description_content = Command(
+        [
+            PathJoinSubstitution([FindExecutable(name="xacro")]),
+            " ",
+            PathJoinSubstitution(
+                [FindPackageShare("ur3_llm_control"), "urdf", "ur_with_gripper.urdf.xacro"]
+            ),
+            " ",
+            "name:=ur",
+            " ",
+            "ur_type:=",
+            ur_type,
+            " ",
+            "safety_limits:=true",
+            " ",
+            "prefix:=\"\"",
+            " ",
+            "joint_limit_params:=",
+            PathJoinSubstitution(
+                [FindPackageShare("ur3_llm_control"), "config", ur_type, "joint_limits.yaml"]
+            ),
+            " ",
+            "kinematics_params:=",
+            PathJoinSubstitution(
+                [FindPackageShare("ur3_llm_control"), "config", ur_type, "default_kinematics.yaml"]
+            ),
+            " ",
+            "physical_params:=",
+            PathJoinSubstitution(
+                [FindPackageShare("ur3_llm_control"), "config", ur_type, "physical_parameters.yaml"]
+            ),
+            " ",
+            "visual_params:=",
+            PathJoinSubstitution(
+                [FindPackageShare("ur3_llm_control"), "config", ur_type, "visual_parameters.yaml"]
+            ),
+            " ",
+        ]
+    )
+    robot_description = {
+        "robot_description": ParameterValue(robot_description_content, value_type=str)
+    }
+
+    robot_description_semantic_content = Command(
+        [
+            PathJoinSubstitution([FindExecutable(name="xacro")]),
+            " ",
+            PathJoinSubstitution([FindPackageShare("ur_moveit_config"), "srdf", "ur.srdf.xacro"]),
+            " ",
+            "name:=ur",
+            " ",
+            "prefix:=\"\"",
+            " ",
+        ]
+    )
+    robot_description_semantic = {
+        "robot_description_semantic": ParameterValue(
+            robot_description_semantic_content, value_type=str
+        )
+    }
+
+    kinematics_yaml = PathJoinSubstitution(
+        [FindPackageShare("ur_moveit_config"), "config", "kinematics.yaml"]
+    )
+
+    # RViz 2 hien thi giao dien 3D day du
     rviz_node = Node(
         package="rviz2",
         executable="rviz2",
         name="rviz2_ur3_llm",
-        output="log",
+        output="screen",
         arguments=["-d", rviz_config_file],
-        parameters=[{"use_sim_time": True}],
+        parameters=[
+            robot_description,
+            robot_description_semantic,
+            kinematics_yaml,
+            {"use_sim_time": True},
+        ],
         condition=IfCondition(launch_rviz),
     )
 
