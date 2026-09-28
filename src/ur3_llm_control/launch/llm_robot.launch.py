@@ -36,7 +36,7 @@ def generate_launch_description():
             description="Khoi chay toan bo mo phong Gazebo va MoveIt 2 (true/false).",
         ),
         DeclareLaunchArgument(
-            "launch_rviz",
+            "start_rviz",
             default_value="true",
             description="Mo giao dien RViz 2 tich hop san Marker vat the va zone (true/false).",
         ),
@@ -59,7 +59,7 @@ def generate_launch_description():
 
     ur_type = LaunchConfiguration("ur_type")
     start_sim = LaunchConfiguration("start_sim")
-    launch_rviz = LaunchConfiguration("launch_rviz")
+    start_rviz = LaunchConfiguration("start_rviz")
     interactive = LaunchConfiguration("interactive")
     command = LaunchConfiguration("command")
     start_delay = LaunchConfiguration("start_delay")
@@ -181,7 +181,7 @@ def generate_launch_description():
             kinematics_yaml,
             {"use_sim_time": True},
         ],
-        condition=IfCondition(launch_rviz),
+        condition=IfCondition(start_rviz),
     )
 
     # 5. Scene Spawner (Phat vat the, vung mau va collision objects)
