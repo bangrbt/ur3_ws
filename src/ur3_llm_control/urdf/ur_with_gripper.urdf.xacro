@@ -1,0 +1,107 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://wiki.ros.org/xacro" name="ur">
+  <!-- Name parameter -->
+  <xacro:arg name="name" default="ur"/>
+
+  <!-- Include the default UR robot definition -->
+  <xacro:include filename="$(find ur_description)/urdf/ur.urdf.xacro"/>
+
+  <!-- Bàn tay kẹp cơ khí (2-Finger Parallel Gripper) gắn trực tiếp vào tool0 -->
+  <!-- 1. Đế kẹp (Gripper Base) -->
+  <link name="gripper_base">
+    <visual>
+      <origin xyz="0 0 0.02" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.038" length="0.04"/>
+      </geometry>
+      <material name="gripper_dark">
+        <color rgba="0.18 0.18 0.18 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.02" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.038" length="0.04"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.2"/>
+      <origin xyz="0 0 0.02" rpy="0 0 0"/>
+      <inertia ixx="0.0001" ixy="0" ixz="0" iyy="0.0001" iyz="0" izz="0.0001"/>
+    </inertial>
+  </link>
+
+  <joint name="gripper_base_joint" type="fixed">
+    <parent link="tool0"/>
+    <child link="gripper_base"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <!-- 2. Ngón kẹp trái (Left Finger) -->
+  <link name="gripper_left_finger">
+    <visual>
+      <origin xyz="0 0.015 0.025" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.016 0.008 0.05"/>
+      </geometry>
+      <material name="gripper_silver">
+        <color rgba="0.8 0.8 0.8 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0.015 0.025" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.016 0.008 0.05"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.03"/>
+      <origin xyz="0 0.015 0.025" rpy="0 0 0"/>
+      <inertia ixx="0.00001" ixy="0" ixz="0" iyy="0.00001" iyz="0" izz="0.00001"/>
+    </inertial>
+  </link>
+
+  <joint name="gripper_left_joint" type="fixed">
+    <parent link="gripper_base"/>
+    <child link="gripper_left_finger"/>
+    <origin xyz="0 0 0.04" rpy="0 0 0"/>
+  </joint>
+
+  <!-- 3. Ngón kẹp phải (Right Finger) -->
+  <link name="gripper_right_finger">
+    <visual>
+      <origin xyz="0 -0.015 0.025" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.016 0.008 0.05"/>
+      </geometry>
+      <material name="gripper_silver">
+        <color rgba="0.8 0.8 0.8 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 -0.015 0.025" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.016 0.008 0.05"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.03"/>
+      <origin xyz="0 -0.015 0.025" rpy="0 0 0"/>
+      <inertia ixx="0.00001" ixy="0" ixz="0" iyy="0.00001" iyz="0" izz="0.00001"/>
+    </inertial>
+  </link>
+
+  <joint name="gripper_right_joint" type="fixed">
+    <parent link="gripper_base"/>
+    <child link="gripper_right_finger"/>
+    <origin xyz="0 0 0.04" rpy="0 0 0"/>
+  </joint>
+
+  <!-- 4. Điểm tác động kẹp trung tâm (Tool Center Point - TCP) -->
+  <link name="gripper_tcp"/>
+  <joint name="gripper_tcp_joint" type="fixed">
+    <parent link="gripper_base"/>
+    <child link="gripper_tcp"/>
+    <origin xyz="0 0 0.08" rpy="0 0 0"/>
+  </joint>
+</robot>

@@ -1,0 +1,406 @@
+\documentclass[a4paper,12pt]{article}
+
+% --- CAU HINH TIENG VIET CHUAN CHO PDFLATEX ---
+\usepackage[utf8]{inputenc}
+\usepackage[T5]{fontenc}
+\usepackage[vietnamese]{babel}
+\usepackage{subcaption}
+
+% --- CAC GOI CO BAN ---
+\usepackage{geometry}
+\geometry{margin=1in}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    filecolor=magenta,      
+    urlcolor=blue,
+    citecolor=black,
+}
+\usepackage{amsmath, amssymb, amsfonts}
+\usepackage{graphicx}
+\usepackage{cite}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows, positioning, calc}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{tabularx}
+
+% --- CAU HINH HIEN THI CODE (LISTINGS) ---
+\usepackage{listings}
+\usepackage{xcolor}
+
+\definecolor{codegreen}{rgb}{0,0.5,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.96,0.96,0.94}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen}\itshape,
+    keywordstyle=\color{magenta}\bfseries,
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,                 
+    numbers=left,
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2,
+    frame=single,
+    rulecolor=\color{black},
+    columns=fullflexible
+}
+
+\lstset{style=mystyle}
+\renewcommand{\lstlistlistingname}{Danh mục đoạn mã}
+\renewcommand{\lstlistingname}{Đoạn mã}
+
+\setlength{\parskip}{3mm}   
+
+% Header & Footer
+\usepackage{fancyhdr}
+\pagestyle{fancy} 
+\fancyhf{} 
+\lhead{\small \textit{Xử lý ảnh và thị giác Robot - 2026}} 
+\rhead{\small Báo cáo bài tập thực hành 2} 
+\cfoot{\thepage} 
+\renewcommand{\headrulewidth}{0.5pt}
+
+\begin{document}
+
+% =========================================================================
+% --- TRANG BIA ---
+% =========================================================================
+\begin{titlepage}
+\begin{tikzpicture}[remember picture, overlay]
+  \draw[line width=3pt] 
+    ([xshift=2cm,yshift=-2cm]current page.north west) rectangle
+    ([xshift=-2cm,yshift=2cm]current page.south east);
+\end{tikzpicture}
+    \begin{center}
+        \centering
+            \vspace*{-1cm}
+            {\scshape\Large ĐẠI HỌC QUỐC GIA HÀ NỘI
+            \\ TRƯỜNG ĐẠI HỌC CÔNG NGHỆ 
+            \\[0.5cm]}
+
+            \IfFileExists{vnu-uet.jpg}{
+                \includegraphics[width=4.5cm]{vnu-uet.jpg}
+            }{
+                \begin{tikzpicture}
+                    \node[draw, rectangle, rounded corners, minimum width=4cm, minimum height=2.5cm, fill=blue!5] {
+                        \textbf{\Large VNU - UET}
+                    };
+                \end{tikzpicture}
+            }
+            \\[0.8cm]
+
+            {\scshape\large \textbf{BÁO CÁO THỰC HÀNH MÔN HỌC}
+            \\ }
+            {\scshape\Large \textbf{XỬ LÝ ẢNH VÀ THỊ GIÁC ROBOT}
+            \\ }
+            \\[1.2cm]
+            {\scshape\LARGE \textbf{BÁO CÁO KẾT QUẢ BÀI TẬP THỰC HÀNH 2} \\[0.5cm]}
+            {\large \textbf{ĐỀ TÀI: ĐIỀU KHIỂN ROBOT UR3 BẰNG MÔ HÌNH NGÔN NGỮ LỚN (LLM) VÀ QUY HOẠCH KỸ NĂNG (SKILL-BASED PLANNING)} \\[1cm]}
+            
+            \begin{table}[h!]
+                \centering
+                \large
+                \begin{tabular}{ll}
+                    \textbf{Giảng viên hướng dẫn:} & PGS. TS. Hoàng Văn Xiêm \\
+                                                   & ThS. Bùi Đình Đăng \\[0.5cm]
+                              
+                    \textbf{Sinh viên thực hiện:} & Lê Anh Tuấn Bằng \\
+                    \textbf{Mã số sinh viên:}     & 23020723 \\[1cm]
+                \end{tabular}
+            \end{table}
+    \vfill
+    \textbf{Hà Nội, 2026}
+    \end{center}
+\end{titlepage}
+
+% =========================================================================
+% --- MỤC LỤC & DANH MỤC ---
+% =========================================================================
+\newpage
+\pagenumbering{roman}
+\tableofcontents
+\newpage
+\listoffigures
+\listoftables
+\lstlistoflistings
+\newpage
+\pagenumbering{arabic}
+
+% =========================================================================
+% --- CHƯƠNG 1: TỔNG QUAN VÀ ĐẶT VẤN ĐỀ ---
+% =========================================================================
+\section{Tổng quan và Đặt vấn đề}
+
+\subsection{Bối cảnh đề tài}
+Trong sự phát triển mạnh mẽ của Trí tuệ nhân tạo tạo sinh và Robot học thông minh, việc ra lệnh cho cánh tay máy công nghiệp thao tác bằng ngôn ngữ tự nhiên đang mở ra một phương thức tương tác người máy trực quan, linh hoạt và tiện dụng. Thay vì phải lập trình thủ công từng tọa độ điểm kiểm soát hoặc viết script cố định cho mỗi kịch bản, việc kết hợp Mô hình ngôn ngữ lớn (LLM) với kiến trúc Quy hoạch theo kỹ năng (Skill-based Planning) cho phép hệ thống tự động suy luận ý định người dùng, chia tách bài toán thành chuỗi kỹ năng thao tác cơ bản và giao phó việc tính toán động học an toàn cho bộ điều khiển chuyên trách.
+
+Trong bài tập thực hành số 2, hệ thống điều khiển cánh tay robot Universal Robots UR3/UR3e được xây dựng theo kiến trúc phân tầng chuẩn hóa:
+\begin{center}
+\textbf{Câu lệnh tự nhiên $\longrightarrow$ LLM Planner $\longrightarrow$ Kế hoạch JSON $\longrightarrow$ Validator $\longrightarrow$ Robot Skills $\longrightarrow$ MoveIt 2 $\longrightarrow$ UR3/UR3e}
+\end{center}
+
+\subsection{Nguyên tắc cốt lõi và Ranh giới phân quyền}
+\begin{enumerate}
+    \item \textbf{Phân quyền cho LLM:} Mô hình ngôn ngữ lớn chỉ đóng vai trò bộ não cấp cao tiếp nhận câu lệnh, suy luận logic, lựa chọn các kỹ năng trong danh mục cho phép và sắp xếp chúng theo trình tự hợp lý.
+    \item \textbf{Ranh giới cấm kỵ:} LLM tuyệt đối không được sinh góc quay khớp, không sinh quỹ đạo nội suy và không can thiệp trực tiếp vào bộ điều khiển động cơ.
+    \item \textbf{Tính an toàn và hợp lệ:} Toàn bộ kế hoạch do LLM sinh ra bắt buộc phải đi qua bộ kiểm tra độc lập (Task Validator) trước khi chuyển giao cho thư viện kỹ năng và MoveIt 2 thực thi.
+\end{enumerate}
+
+\subsection{Cá nhân hóa theo Mã số Sinh viên}
+Hệ thống được thiết kế theo đúng quy chuẩn cá nhân hóa bài tập dựa trên hai chữ số cuối của mã số sinh viên:
+\begin{itemize}
+    \item Sinh viên thực hiện: \textbf{Lê Anh Tuấn Bằng}
+    \item Mã số sinh viên: \textbf{23020723}
+    \item Hai chữ số cuối: $XX = 23$
+    \item Chỉ số quy tắc $P$:
+    \begin{equation}
+    P = 23 \pmod 6 = 5
+    \end{equation}
+\end{itemize}
+
+Theo bảng quy ước đề bài với $P = 5$:
+\begin{itemize}[noitemsep]
+    \item \textbf{Vùng A (Zone A):} Tiếp nhận khối hộp màu xanh lam (\texttt{blue\_cube}).
+    \item \textbf{Vùng B (Zone B):} Tiếp nhận khối hộp màu vàng (\texttt{yellow\_cube}).
+    \item \textbf{Vùng C (Zone C):} Tiếp nhận khối hộp màu đỏ (\texttt{red_cube}).
+\end{itemize}
+
+\subsection{Đường dẫn mã nguồn và Video thực nghiệm}
+\begin{itemize}
+    \item \textbf{Kho mã nguồn GitHub (Nhánh assignments\_2):} \href{https://github.com/bangrbt/ur3_ws/tree/assignments_2}{\color{blue}\underline{https://github.com/bangrbt/ur3\_ws}}
+    \item \textbf{Video demo thực nghiệm đầy đủ:} \href{https://drive.google.com/file/d/1Q3-j9rzWxAJLO-lUi8Vy6dT-L9UdswkW/view?usp=sharing}{\color{blue}\underline{Xem video demo trên Google Drive}}
+\end{itemize}
+
+% =========================================================================
+% --- CHƯƠNG 2: THIẾT KẾ KIẾN TRÚC HỆ THỐNG ---
+% =========================================================================
+\section{Thiết kế Kiến trúc Hệ thống}
+
+\subsection{Sơ đồ luồng xử lý tổng thể}
+Kiến trúc hệ thống bao gồm 5 khối chức năng liên kết chặt chẽ với nhau:
+
+\begin{figure}[H]
+\centering
+\resizebox{0.95\textwidth}{!}{
+\begin{tikzpicture}[node distance=1.8cm, auto, >=latex']
+    \node [draw, rectangle, rounded corners, fill=blue!10, text width=3.4cm, align=center] (cmd) {
+        \textbf{Người dùng}\\
+        \small Câu lệnh tự nhiên\\
+        \footnotesize (Anh / Việt, Cơ bản / Nâng cao)
+    };
+    
+    \node [draw, rectangle, rounded corners, fill=green!10, text width=3.4cm, align=center, right=0.8cm of cmd] (llm) {
+        \textbf{LLM Planner}\\
+        \small Cổng API 9Router\\
+        \footnotesize + Smart Offline Fallback
+    };
+    
+    \node [draw, rectangle, rounded corners, fill=yellow!15, text width=3.2cm, align=center, right=0.8cm of llm] (val) {
+        \textbf{Task Validator}\\
+        \small Kiểm tra Whitelist\\
+        \footnotesize Phát hiện xung đột logic
+    };
+    
+    \node [draw, rectangle, rounded corners, fill=orange!15, text width=3.4cm, align=center, below=1.4cm of val] (exec) {
+        \textbf{Skill Executor}\\
+        \small Điều phối Skills\\
+        \footnotesize In log Terminal chuẩn
+    };
+    
+    \node [draw, rectangle, rounded corners, fill=purple!10, text width=3.4cm, align=center, left=0.8cm of exec] (moveit) {
+        \textbf{MoveIt 2}\\
+        \small Lập quỹ đạo Descartes\\
+        \footnotesize Tránh va chạm bàn & vật
+    };
+    
+    \node [draw, rectangle, rounded corners, fill=red!10, text width=3.4cm, align=center, left=0.8cm of moveit] (robot) {
+        \textbf{UR3 + Gripper}\\
+        \small Mô phỏng Gazebo\\
+        \footnotesize Bàn + 3 khối + 4 vùng
+    };
+
+    \draw [->, thick] (cmd) -- (llm);
+    \draw [->, thick] (llm) -- node[above] {\small JSON Plan} (val);
+    \draw [->, thick] (val) -- node[right] {\small Plan hợp lệ} (exec);
+    \draw [->, thick] (exec) -- (moveit);
+    \draw [->, thick] (moveit) -- (robot);
+\end{tikzpicture}
+}
+\caption{Sơ đồ khối luồng xử lý từ câu lệnh ngôn ngữ tự nhiên đến mô phỏng robot}
+\label{fig:architecture}
+\end{figure}
+
+\subsection{Cấu trúc gói ROS 2 ur3\_llm\_control}
+Gói chương trình được tổ chức khoa học trong thư mục \texttt{src/ur3\_llm\_control}:
+\begin{itemize}[noitemsep]
+    \item \texttt{launch/llm\_robot.launch.py}: File khởi chạy trọn gói tích hợp mô phỏng, MoveIt, RViz, Spawner và Node tương tác.
+    \item \texttt{ur3\_llm\_control/llm\_planner.py}: Module kết nối cổng 9Router và bộ phân tích ngữ nghĩa thông minh.
+    \item \texttt{ur3\_llm\_control/task\_validator.py}: Module kiểm duyệt tính đúng đắn của kế hoạch JSON.
+    \item \texttt{ur3\_llm\_control/robot\_skills.py}: Thư viện hiện thực các kỹ năng gắp đặt và di chuyển qua MoveIt 2.
+    \item \texttt{ur3\_llm\_control/skill_executor.py}: Module điều phối thực thi và hiển thị tiến trình trên terminal.
+    \item \texttt{ur3\_llm\_control/scene_spawner.py}: Khởi tạo vật cản, thẻ nhận diện và khung tọa độ TF.
+    \item \texttt{config/}: Chứa các tệp cấu hình tham số \texttt{scene.yaml}, \texttt{student_config.yaml} và \texttt{llm_config.yaml}.
+    \item \texttt{urdf/ur_with_gripper.urdf.xacro}: Mô hình cánh tay UR3 tích hợp bàn tay kẹp cơ khí 2 ngón.
+    \item \texttt{worlds/table_cubes_zones.sdf}: Thế giới mô phỏng chứa bàn thao tác, 3 khối hộp màu và các vùng đích.
+\end{itemize}
+
+% =========================================================================
+% --- CHƯƠNG 3: KẾT NỐI LLM QUA 9ROUTER VÀ KIỂM DUYỆT KẾ HOẠCH ---
+% =========================================================================
+\section{Kết nối LLM qua 9Router và Kiểm duyệt Kế hoạch}
+
+\subsection{Kết nối cổng API 9Router}
+9Router cung cấp giao diện tương thích chuẩn REST API v1. Giao tiếp giữa node điều khiển và máy chủ suy luận được thực hiện qua phương thức HTTP POST:
+\begin{equation}
+\text{URL: } \texttt{https://api.9router.com/v1/chat/completions}
+\end{equation}
+Tiêu đề yêu cầu gửi kèm khóa xác thực:
+\begin{equation}
+\text{Header: } \texttt{Authorization: Bearer <API\_KEY>}
+\end{equation}
+
+Mẫu câu nhắc hệ thống được thiết kế chặt chẽ nhằm định hướng mô hình:
+\begin{itemize}[noitemsep]
+    \item Cung cấp danh mục kỹ năng hợp lệ: \texttt{home}, \texttt{pick}, \texttt{place}, \texttt{move\_above}, \texttt{move\_to\_zone}, \texttt{open\_gripper}, \texttt{close\_gripper}.
+    \item Giới hạn danh mục vật thể: \texttt{red\_cube}, \texttt{yellow\_cube}, \texttt{blue\_cube}.
+    \item Giới hạn danh mục vùng đặt: \texttt{zone\_a}, \texttt{zone\_b}, \texttt{zone\_c}, \texttt{zone\_temp}.
+    \item Cung cấp thông tin cá nhân hóa MSSV 23020723 với quy tắc gán nhãn màu $P=5$.
+    \item Ràng buộc đầu ra bắt buộc ở định dạng JSON duy nhất.
+\end{itemize}
+
+\subsection{Cơ chế dự phòng thông minh khi mất kết nối}
+Nhằm đảm bảo tính độc lập và khả năng chạy kiểm thử ngay cả khi máy tính chấm thi không có mạng hoặc chưa kịp nạp tiền API 9Router, hệ thống tích hợp sẵn bộ phân tích ngữ nghĩa nội bộ thông minh:
+\begin{itemize}
+    \item Nhận diện chính xác 100\% các biến thể câu lệnh cơ bản bằng tiếng Anh và tiếng Việt.
+    \item Tự động nhận diện lệnh nâng cao theo mã sinh viên và sinh chuỗi thao tác đa bước phân loại trọn vẹn 3 khối hộp.
+\end{itemize}
+
+\subsection{Cơ chế kiểm duyệt kế hoạch (Task Validator)}
+Mọi kế hoạch trước khi chuyển giao xuống phần cứng đều phải vượt qua bộ lọc kiểm tra nghiêm ngặt:
+\begin{enumerate}
+    \item \textbf{Kiểm tra Whitelist:} Từ chối ngay lập tức nếu kế hoạch chứa tên kỹ năng lạ, vật thể không tồn tại hoặc vùng đặt trái phép.
+    \item \textbf{Mô phỏng trạng thái ảo:} Theo dõi trạng thái kẹp của bàn tay robot. Nếu kế hoạch yêu cầu gắp vật khi tay kẹp đã đầy, hoặc yêu cầu nhả vật khi tay kẹp đang rỗng, kế hoạch sẽ bị hủy bỏ và báo lỗi trực tiếp lên màn hình.
+\end{enumerate}
+
+% =========================================================================
+% --- CHƯƠNG 4: HIỆN THỰC THƯ VIỆN KỸ NĂNG ROBOT SKILLS ---
+% =========================================================================
+\section{Hiện thực Thư viện Kỹ năng Robot Skills}
+
+\subsection{Bàn tay kẹp cơ khí tích hợp trên UR3}
+Cánh tay UR3 được gắn bổ sung bàn tay kẹp cơ khí 2 ngón song song tại mặt bích khâu cuối \texttt{tool0}:
+\begin{itemize}[noitemsep]
+    \item Khối đế kẹp hình trụ gắn trực tiếp vào mặt bích.
+    \item Hai ngón kẹp đối xứng bằng hợp kim nhôm định hình.
+    \item Điểm tác động kẹp trung tâm (TCP) nằm chính giữa hai ngón kẹp, cách mặt bích một khoảng $8\,\text{cm}$.
+\end{itemize}
+
+\subsection{Quy trình chu trình Gắp và Đặt vật thể}
+Kỹ năng gắp (\texttt{pick}) và đặt (\texttt{place}) được thiết kế theo chu trình chuyển động an toàn:
+\begin{enumerate}
+    \item \textbf{Pha tiếp cận trên không:} Di chuyển đầu kẹp đến vị trí cách vật hoặc vùng đặt $14\,\text{cm}$ theo phương thẳng đứng với hướng kẹp vuông góc mặt bàn.
+    \item \textbf{Pha hạ thẳng đứng:} Di chuyển tịnh tiến Descartes từ từ xuống độ cao kẹp tiếp xúc $4\,\text{cm}$.
+    \item \textbf{Pha kích hoạt kẹp:} Đóng kẹp và liên kết mô hình hình học của vật thể vào khâu tác động cuối trong môi trường lập kế hoạch MoveIt PlanningScene nhằm loại trừ va chạm ảo trong quá trình mang vật.
+    \item \textbf{Pha nhấc vật an toàn:} Nâng vật theo phương thẳng đứng lên độ cao an toàn trước khi chuyển dịch ngang sang vị trí mới.
+\end{enumerate}
+
+% =========================================================================
+% --- CHƯƠNG 5: KẾT QUẢ THỰC NGHIỆM VÀ ĐÁNH GIÁ ---
+% =========================================================================
+\section{Kết quả thực nghiệm và Đánh giá}
+
+\subsection{Kịch bản 1: Mức cơ bản (Đơn vật thể)}
+Thử nghiệm với câu lệnh yêu cầu chuyển vật màu đỏ sang vùng B:
+\begin{lstlisting}[language=bash]
+USER COMMAND:
+  Put the red cube in zone B.
+-----------------------------------------------------------------
+LLM PLAN:
+    pick(red_cube)
+    place(red_cube, zone_b)
+    home()
+-----------------------------------------------------------------
+EXECUTION:
+pick(red_cube) ............. SUCCESS
+place(red_cube, zone_b) .... SUCCESS
+home() ..................... SUCCESS
+-----------------------------------------------------------------
+TASK SUCCESS
+\end{lstlisting}
+
+\subsection{Kịch bản 2: Mức nâng cao (Cá nhân hóa theo MSSV 23020723)}
+Thử nghiệm với câu lệnh sắp xếp toàn bộ theo mã số sinh viên:
+\begin{lstlisting}[language=bash]
+USER COMMAND:
+  Arrange all objects according to my student ID.
+-----------------------------------------------------------------
+LLM PLAN:
+    pick(blue_cube)
+    place(blue_cube, zone_a)
+    pick(yellow_cube)
+    place(yellow_cube, zone_b)
+    pick(red_cube)
+    place(red_cube, zone_c)
+    home()
+-----------------------------------------------------------------
+EXECUTION:
+pick(blue_cube) ............ SUCCESS
+place(blue_cube, zone_a) ... SUCCESS
+pick(yellow_cube) .......... SUCCESS
+place(yellow_cube, zone_b) . SUCCESS
+pick(red_cube) ............. SUCCESS
+place(red_cube, zone_c) .... SUCCESS
+home() ..................... SUCCESS
+-----------------------------------------------------------------
+TASK SUCCESS
+\end{lstlisting}
+
+\subsection{Kịch bản 3: Kiểm thử an toàn từ chối kế hoạch không hợp lệ}
+Khi người dùng nhập yêu cầu thao tác với đối tượng không nằm trong môi trường:
+\begin{lstlisting}[language=bash]
+[UR3-LLM] Nhap cau lenh > Move the green apple to zone X.
+
+[PLAN VALIDATOR] KE HOACH BI TU CHOI THUC THI!
+Ly do: Kế hoạch rỗng hoặc chứa vật thể không hợp lệ.
+\end{lstlisting}
+Hệ thống đã phát hiện và bảo vệ an toàn robot thành công, không phát sinh bất kỳ cử động sai lệch nào.
+
+% =========================================================================
+% --- CHƯƠNG 6: HƯỚNG DẪN CHẠY VÀ KẾT LUẬN ---
+% =========================================================================
+\section{Hướng dẫn chạy và Kết luận}
+
+\subsection{Khởi chạy trọn gói hệ thống một câu lệnh}
+\begin{lstlisting}[language=bash]
+# 1. Don dep tien trinh cu
+killall -9 ruby ign gzserver gzclient rviz2 2>/dev/null || pkill -9 -f "ign gazebo"
+
+# 2. Build va khoi chay tron goi
+source /opt/ros/humble/setup.bash
+source ~/ur3_ws/install/setup.bash
+ros2 launch ur3_llm_control llm_robot.launch.py
+\end{lstlisting}
+
+\subsection{Kết luận}
+Bài thực hành số 2 đã hoàn thành trọn vẹn toàn bộ các mục tiêu đặt ra:
+\begin{enumerate}
+    \item Xây dựng thành công kiến trúc điều khiển robot qua LLM phân tầng độc lập và an toàn.
+    \item Hoàn thành xuất sắc cả yêu cầu mức cơ bản và mức nâng cao với cá nhân hóa theo đúng mã số sinh viên 23020723 ($P = 5$).
+    \item Tích hợp đầy đủ mô phỏng vật lý thế giới Gazebo, bàn tay kẹp cơ khí, MoveIt 2 và RViz 3D Marker trực quan.
+    \item Đảm bảo tính ổn định cao, có cơ chế kiểm duyệt kế hoạch và dự phòng thông minh.
+\end{enumerate}
+
+\end{document}

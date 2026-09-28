@@ -1,0 +1,15 @@
+# Thong tin ca nhan hoa sinh vien - Bai thuc hanh 2
+student_name: "Lê Anh Tuấn Bằng"
+student_id: "23020723"
+
+# Quy uoc ca nhan hoa:
+# P = XX mod 6 = 23 mod 6 = 5
+# P = 5: Zone A -> Blue, Zone B -> Yellow, Zone C -> Red
+p_value: 5
+
+rules:
+  formula: "XX mod 6 = 23 mod 6 = 5"
+  zone_mapping:
+    zone_a: "blue_cube"
+    zone_b: "yellow_cube"
+    zone_c: "red_cube"
