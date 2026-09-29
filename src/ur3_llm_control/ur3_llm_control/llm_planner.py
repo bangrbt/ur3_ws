@@ -16,7 +16,7 @@ import requests
 import unicodedata
 from typing import Dict, Any, Tuple, List
 
-from .student_utils import parse_student_info
+from .student_utils import parse_student_info, compute_optimal_sorting_plan
 
 
 class LLMPlanner:
@@ -61,8 +61,20 @@ class LLMPlanner:
                 return yaml.safe_load(f) or {}
         return {}
 
-    def _build_system_prompt(self) -> str:
-        prompt = f"""You are a high-level Task Planner for a 6-DOF Universal Robots UR3 manipulator.
+    def _build_system_prompt(self, scene_state: dict = None) -> str:
+        cube_locs = {}
+        zone_occupants = {}
+        if scene_state:
+            cube_locs = scene_state.get("cube_locations", {})
+            zone_occupants = scene_state.get("zone_occupants", {})
+
+        state_lines = []
+        for obj in ["red_cube", "yellow_cube", "blue_cube"]:
+            loc = cube_locs.get(obj, "source_tray")
+            state_lines.append(f"  * {obj}: currently at '{loc}'")
+        occ_str = json.dumps(zone_occupants) if zone_occupants else "all zones empty"
+
+        prompt = f"""You are an advanced, optimal Task Planner for a 6-DOF Universal Robots UR3 manipulator.
 Your job is to translate Natural Language Commands from the user into a STRICT JSON Structured Plan.
 
 ### HARD CONSTRAINTS:
@@ -79,57 +91,52 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
     * Zone B (zone_b) must receive: {self.zone_mapping['zone_b']}
     * Zone C (zone_c) must receive: {self.zone_mapping['zone_c']}
 
+### REAL-TIME WORKSPACE SCENE STATE:
+{chr(10).join(state_lines)}
+- Zone occupants: {occ_str}
+
 ### ALLOWED ROBOT SKILLS:
 - pick: Pick an object from table. Args: "object" (string: red_cube, yellow_cube, blue_cube)
 - place: Place the currently held object into target zone. Args: "object" (string), "zone" (string: zone_a, zone_b, zone_c, zone_temp)
-- clear_zones: Clear all cubes from zone_a, zone_b, zone_c back to initial trays. Args: none
-- clear_zone: Clear any cube inside a specific zone. Args: "zone" (string)
 - home: Move arm to home / observation pose. Args: none
 - swap: Swap positions of two cubes using zone_temp. Args: "object_a", "object_b"
 - stack: Stack object_top on top of object_bottom. Args: "object_top", "object_bottom"
 - reset_scene: Reset all 3 cubes back to initial source trays. Args: none
 - inspect_scene: Query status of all cubes and zones. Args: none
-- move_above: Move gripper above object. Args: "object" (string)
-- move_to_zone: Move gripper above zone. Args: "zone" (string)
-- open_gripper: Open gripper fingers. Args: none
-- close_gripper: Close gripper fingers. Args: none
+- clear_zone: Clear a specific zone. Args: "zone" (string)
 
 ### ALLOWED OBJECTS:
-- "red_cube"
-- "yellow_cube"
-- "blue_cube"
+- "red_cube", "yellow_cube", "blue_cube"
 
 ### ALLOWED ZONES:
-- "zone_a"
-- "zone_b"
-- "zone_c"
-- "zone_temp"
+- "zone_a", "zone_b", "zone_c", "zone_temp"
 
-### OUTPUT JSON FORMAT AND RULES:
-1. When user asks to arrange/sort objects according to Student ID (hoặc theo mã số sinh viên):
-   First step MUST be {{"skill": "clear_zones"}} (to remove any existing cubes from the zones).
-   Then pick and place each cube into its designated zone according to the mapping:
-     - {self.zone_mapping['zone_a']} into zone_a
-     - {self.zone_mapping['zone_b']} into zone_b
-     - {self.zone_mapping['zone_c']} into zone_c
-   Finally end with {{"skill": "home"}}.
-2. Format each skill step as a JSON object with "skill" as a plain string (NEVER with parentheses like "pick(...)").
-   Example:
-   {{
-     "thought": "Reasoning explaining user intent and steps in Vietnamese...",
-     "plan": [
-       {{"skill": "pick", "object": "red_cube"}},
-       {{"skill": "place", "object": "red_cube", "zone": "zone_b"}},
-       {{"skill": "home"}}
-     ]
-   }}
-3. REJECTION OF INVALID COMMANDS:
-   - If the user asks for an object NOT in ALLOWED OBJECTS (such as "quả táo", "apple", "green cube", "ball", etc.): DO NOT substitute or invent items! Set "plan": [] and explain in "thought" that the object is not supported.
-   - If the user asks for a zone NOT in ALLOWED ZONES (such as "vùng D", "zone_d", "vùng E", etc.): DO NOT substitute! Set "plan": [] and explain in "thought" that the zone is invalid.
+### OPTIMAL PLANNING STRATEGY (CRITICAL FOR MINIMUM TIME & EXECUTION):
+1. PRESERVE CORRECT POSITIONS: If an object is ALREADY in its designated target zone, DO NOT touch or move it!
+2. NEVER return all cubes to waiting trays (DO NOT call clear_zones unless explicitly asked to reset).
+3. DIRECT PLACEMENT: If an object is not in its target zone and its target zone is currently EMPTY, pick it and place it DIRECTLY into that target zone.
+4. TWO-OBJECT CONFLICT / SWAP RESOLUTION:
+   If two objects are in each other's target zones (e.g. obj1 is in target of obj2, and obj2 is in target of obj1):
+   - Step 1: Pick obj1 and place it into "zone_temp".
+   - Step 2: Pick obj2 and place it DIRECTLY into its correct target zone (do NOT put it into waiting tray).
+   - Step 3: Pick obj1 from "zone_temp" and place it DIRECTLY into its correct target zone.
+5. If user asks to move an object into a zone where it is already located, return {{"thought": "Object already in target zone.", "plan": [{{"skill": "home"}}]}}.
+6. End all operational plans with {{"skill": "home"}}.
+7. REJECTION: If user asks for an object or zone not in allowed lists (e.g., "quả táo", "vùng D"), return "plan": [] and explain why in "thought".
+
+### OUTPUT JSON FORMAT:
+{{
+  "thought": "Reasoning explaining user intent, current state, and optimal steps in Vietnamese...",
+  "plan": [
+    {{"skill": "pick", "object": "red_cube"}},
+    {{"skill": "place", "object": "red_cube", "zone": "zone_b"}},
+    {{"skill": "home"}}
+  ]
+}}
 """
         return prompt
 
-    def plan(self, user_command: str) -> Tuple[Dict[str, Any], str]:
+    def plan(self, user_command: str, scene_state: dict = None) -> Tuple[Dict[str, Any], str, str]:
         """
         Goi LLM (9Router) de lap ke hoach, co fallback tu dong.
         Bao cao ro rang che do Online API hay Offline.
@@ -146,7 +153,7 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
 
             for test_url in candidate_urls:
                 try:
-                    plan_dict = self._call_9router_api(user_command_clean, target_url=test_url)
+                    plan_dict = self._call_9router_api(user_command_clean, target_url=test_url, scene_state=scene_state)
                     if plan_dict and "plan" in plan_dict:
                         banner = f"ONLINE LLM (9Router @ {test_url} - Model: {self.model})"
                         conn_status = f"📡 [KẾT NỐI API THÀNH CÔNG] Đang lập kế hoạch qua 9Router Online (URL: {test_url} | Model: {self.model})"
@@ -165,7 +172,7 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
             )
             print(f"\n[PLANNER MODE] >>> {banner} <<<", flush=True)
             print(f"{conn_status}\n", flush=True)
-            plan_dict = self._smart_rule_planner(user_command_clean)
+            plan_dict = self._smart_rule_planner(user_command_clean, scene_state=scene_state)
             return plan_dict, banner, conn_status
 
         err_msg = (
@@ -175,7 +182,7 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
         print(f"\n{err_msg}\n", flush=True)
         return {"plan": []}, "9Router Connection Error", err_msg
 
-    def _call_9router_api(self, user_command: str, target_url: str = None) -> Dict[str, Any]:
+    def _call_9router_api(self, user_command: str, target_url: str = None, scene_state: dict = None) -> Dict[str, Any]:
         """Gui HTTP Request chuan OpenAI Chat Completion toi 9Router."""
         endpoint = target_url or self.base_url
         url = f"{endpoint.rstrip('/')}/chat/completions"
@@ -185,14 +192,17 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
             "Authorization": f"Bearer {self.api_key}"
         }
 
+        # Build dynamic prompt with real-time scene state
+        system_prompt = self._build_system_prompt(scene_state=scene_state)
+
         payload = {
             "model": self.model,
             "messages": [
-                {"role": "system", "content": self.system_prompt},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_command}
             ],
             "temperature": self.temperature,
-            "max_tokens": 800,
+            "max_tokens": 1500,
             "stream": False
         }
 
@@ -232,6 +242,17 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
             for item in parsed["plan"]:
                 if isinstance(item, dict):
                     skill_str = item.get("skill", "").strip()
+
+                    # Xu ly truong hop LLM tra ve skill pick_and_place
+                    if skill_str == "pick_and_place":
+                        params = item.get("parameters", item)
+                        obj = params.get("object", "")
+                        tgt_z = params.get("end_zone", params.get("zone", params.get("target_zone", "")))
+                        if obj and tgt_z:
+                            normalized_plan.append({"skill": "pick", "object": obj})
+                            normalized_plan.append({"skill": "place", "object": obj, "zone": tgt_z})
+                            continue
+
                     # Neu LLM tra ve dang function call: pick(red_cube) hoac place(red_cube, zone_b)
                     func_match = re.match(r"^(\w+)\((.*)\)$", skill_str)
                     if func_match:
@@ -283,11 +304,11 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
 
         return parsed
 
-    def _smart_rule_planner(self, command: str) -> Dict[str, Any]:
+    def _smart_rule_planner(self, command: str, scene_state: dict = None) -> Dict[str, Any]:
         """
         Bo lap ke hoach noi bo dua tren phan tich ngu nghia (NLP/Semantic Extraction).
-        KHONG HARDCODE: Tu dong trich xuat thuc the (entity) cho moi cau lenh tieng Viet / tieng Anh,
-        dong thoi tu dong tinh toan P = XX mod 6 cho bat ky MSSV nao.
+        KHONG HARDCODE: Tu dong trich xuat thuc the cho moi cau lenh tieng Viet / tieng Anh,
+        dong thoi tinh toan P = XX mod 6 va ap dung thuat toan sap xep toi uu so buoc nhat.
         """
         cmd_raw = command.strip().lower()
         nfkd = unicodedata.normalize('NFKD', cmd_raw)
@@ -308,28 +329,24 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
             thought = "Nguoi dung yeu cau robot dua tay ve tu the cho (home)."
             return {"thought": thought, "plan": [{"skill": "home"}]}
 
-        # 4. Kiem tra cau lenh Ca nhan hoa theo MSSV (DONG HOAN TOAN THEO MA SINH VIEN BAT KY)
+        # 4. Kiem tra cau lenh Ca nhan hoa theo MSSV (DONG HOAN TOAN THEO MA SINH VIEN BAT KY & TOI UU TOI DA)
         if any(kw in cmd_clean for kw in [
             "student id", "mssv", "ma sinh vien", "ma so sinh vien", 
             "arrange all", "sap xep toan bo", "sap xep tat ca", "sap xep cac khoi", "theo ma"
         ]):
+            cube_locs = {}
+            if scene_state:
+                cube_locs = scene_state.get("cube_locations", {})
+            if not cube_locs:
+                cube_locs = {"red_cube": "source_tray", "yellow_cube": "source_tray", "blue_cube": "source_tray"}
+
+            plan_steps, thought_opt = compute_optimal_sorting_plan(cube_locs, self.zone_mapping)
             thought = (
-                f"Cau lenh yeu cau sap xep theo MSSV {self.student_id} (XX={self.xx} -> P={self.p_value}). "
-                f"Tien hanh don sach cac khoi dang o trong vung ve khay truoc de tranh chong de, sau do sap xep: "
-                f"Zone A -> {self.zone_mapping['zone_a']}, "
+                f"Sắp xếp theo MSSV {self.student_id} (XX={self.xx} -> P={self.p_value}). "
+                f"Mục tiêu: Zone A -> {self.zone_mapping['zone_a']}, "
                 f"Zone B -> {self.zone_mapping['zone_b']}, "
-                f"Zone C -> {self.zone_mapping['zone_c']}."
+                f"Zone C -> {self.zone_mapping['zone_c']}. {thought_opt}"
             )
-            plan_steps = [
-                {"skill": "clear_zones"},
-                {"skill": "pick", "object": self.zone_mapping["zone_a"]},
-                {"skill": "place", "object": self.zone_mapping["zone_a"], "zone": "zone_a"},
-                {"skill": "pick", "object": self.zone_mapping["zone_b"]},
-                {"skill": "place", "object": self.zone_mapping["zone_b"], "zone": "zone_b"},
-                {"skill": "pick", "object": self.zone_mapping["zone_c"]},
-                {"skill": "place", "object": self.zone_mapping["zone_c"], "zone": "zone_c"},
-                {"skill": "home"}
-            ]
             return {"thought": thought, "plan": plan_steps}
 
         # Helper: Trich xuat cac khoi hop theo thu tu xuat hien trong cau lenh
@@ -416,13 +433,29 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
             target_zone = invalid_zone
 
         if target_obj and target_zone:
-            thought = f"Nguoi dung yeu cau gap vat '{target_obj}' dat vao vung '{target_zone}' (kiem tra va don sach vung truoc neu co vat khac)."
-            plan_steps = [
-                {"skill": "clear_zone", "zone": target_zone},
-                {"skill": "pick", "object": target_obj},
-                {"skill": "place", "object": target_obj, "zone": target_zone},
-                {"skill": "home"}
-            ]
+            cube_locs = scene_state.get("cube_locations", {}) if scene_state else {}
+            zone_occs = scene_state.get("zone_occupants", {}) if scene_state else {}
+
+            cur_obj_loc = cube_locs.get(target_obj)
+            cur_zone_occ = zone_occs.get(target_zone)
+
+            # Neu vat da o dung zone yeu cau -> Khong thao tac gi them
+            if cur_obj_loc == target_zone:
+                thought = f"Vật '{target_obj}' đã ở sẵn trong '{target_zone}', robot giữ nguyên tư thế nghỉ (Home)."
+                return {"thought": thought, "plan": [{"skill": "home"}]}
+
+            plan_steps = []
+            # Neu zone dich dang co vat the khac: tam thoi dua vat the do ra zone_temp
+            if cur_zone_occ and cur_zone_occ != target_obj:
+                plan_steps.append({"skill": "pick", "object": cur_zone_occ})
+                plan_steps.append({"skill": "place", "object": cur_zone_occ, "zone": "zone_temp"})
+
+            plan_steps.append({"skill": "pick", "object": target_obj})
+            plan_steps.append({"skill": "place", "object": target_obj, "zone": target_zone})
+            plan_steps.append({"skill": "home"})
+
+            thought = f"Tối ưu quy trình: đưa '{target_obj}' vào '{target_zone}' không gây chồng đè."
+            return {"thought": thought, "plan": plan_steps}
         elif target_obj and not target_zone:
             thought = f"Nguoi dung chi yeu cau gap vat '{target_obj}'."
             plan_steps = [

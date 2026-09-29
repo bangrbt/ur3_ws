@@ -241,11 +241,14 @@ class SceneSpawner(Node):
                 m_txt.text = label_text
                 msg.markers.append(m_txt)
 
-        # 2. 3 Khay chua phoi nguon ban dau (Source Trays tai X = 0.24m)
+        # 2. 3 Khay chua cho ban dau (Initial Waiting Trays tai X = 0.24m)
+        # Dung chung 1 mau thep anh kim sang (Titanium Silver), hoan toan khong trung voi Do, Vang, Xanh cua cac khay phan loai
+        WAIT_BASE_COLOR = [0.72, 0.75, 0.80, 0.65]
+        WAIT_RIM_COLOR = [0.85, 0.88, 0.92, 0.95]
         source_trays = {
-            "tray_red": {"pos": [0.24, -0.11], "base": [0.95, 0.2, 0.2, 0.55], "rim": [0.98, 0.3, 0.3, 0.95], "lbl": "TRAY RED"},
-            "tray_yellow": {"pos": [0.24, 0.00], "base": [0.95, 0.85, 0.1, 0.55], "rim": [0.98, 0.90, 0.2, 0.95], "lbl": "TRAY YELLOW"},
-            "tray_blue": {"pos": [0.24, 0.11], "base": [0.2, 0.5, 0.95, 0.55], "rim": [0.3, 0.6, 0.98, 0.95], "lbl": "TRAY BLUE"},
+            "tray_1": {"pos": [0.24, -0.11], "base": WAIT_BASE_COLOR, "rim": WAIT_RIM_COLOR, "lbl": "WAIT 1"},
+            "tray_2": {"pos": [0.24, 0.00], "base": WAIT_BASE_COLOR, "rim": WAIT_RIM_COLOR, "lbl": "WAIT 2"},
+            "tray_3": {"pos": [0.24, 0.11], "base": WAIT_BASE_COLOR, "rim": WAIT_RIM_COLOR, "lbl": "WAIT 3"},
         }
         for t_name, t_info in source_trays.items():
             add_3d_tray(t_info["pos"][0], t_info["pos"][1], t_info["base"], t_info["rim"], "source_trays", t_info["lbl"])

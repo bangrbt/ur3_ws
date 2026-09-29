@@ -145,8 +145,9 @@ class LLMInteractiveNode(Node):
             self.get_logger().info(msg_start)
             self._send_feedback(msg_start)
 
-            # 1. LLM Task Planner sinh ke hoach co cau truc
-            plan_dict, source_info, conn_status = self.planner.plan(command)
+            # 1. LLM Task Planner sinh ke hoach co cau truc (toi uu dua tren vi tri thuc te cua cac khoi)
+            scene_state = self.skills.get_scene_state()
+            plan_dict, source_info, conn_status = self.planner.plan(command, scene_state=scene_state)
 
             # Phat tin hieu ket noi API / canh bao mat ket noi toi Console nguoi dung
             self._send_feedback(f"\n{conn_status}\n")

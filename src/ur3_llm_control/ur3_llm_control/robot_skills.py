@@ -563,13 +563,30 @@ class RobotSkills:
         self.home()
         return "SUCCESS"
 
+    def get_cube_locations(self) -> dict:
+        """Tra ve vi tri logic cua tung vat the ('zone_a', 'zone_b', 'zone_c', 'zone_temp' hoac 'source_tray')."""
+        locations = {}
+        for obj in self.objects_config:
+            loc = "source_tray"
+            for z, occupant in self.zone_occupants.items():
+                if occupant == obj:
+                    loc = z
+                    break
+            locations[obj] = loc
+        return locations
+
+    def get_scene_state(self) -> dict:
+        """Bao cao trang thai logic day du cua Scene cho LLM Planner lap ke hoach toi uu."""
+        return {
+            "cube_locations": self.get_cube_locations(),
+            "zone_occupants": dict(self.zone_occupants),
+            "holding": self.holding_object,
+            "positions": self.object_positions
+        }
+
     def inspect_scene(self) -> dict:
         """Bao cao vi tri tat ca cac vat the, trang thai zone va trang thai tay kep."""
-        return {
-            "holding": self.holding_object,
-            "positions": self.object_positions,
-            "zone_occupants": self.zone_occupants
-        }
+        return self.get_scene_state()
 
     # =========================================================================
     # --- CAC HAM BO TRO MOVEIT 2 ---
