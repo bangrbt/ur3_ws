@@ -1,7 +1,7 @@
 # Cau hinh ket noi 9Router / OpenAI LLM API Gateway
 
-# URL API cua 9Router (tuong thich chuan OpenAI v1)
-base_url: "https://api.9router.com/v1"
+# URL API cua 9Router (tuong thich chuan OpenAI v1, chay local qua 'npx 9router')
+base_url: "http://localhost:20128/v1"
 
 # API Key cua 9Router (neu de trong, he thong se doc tu bien moi truong NINE_ROUTER_API_KEY hoac OPENAI_API_KEY)
 api_key: "sk-4e6f373b240d5083-b803ys-53876dfb"

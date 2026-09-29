@@ -155,7 +155,12 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
             plan_dict = self._smart_rule_planner(user_command_clean)
             return plan_dict, banner, conn_status
 
-        return {"plan": []}, "No Planner Available", "❌ Không có bộ lập kế hoạch nào khả dụng."
+        err_msg = (
+            f"❌ [LỖI KẾT NỐI 9ROUTER]: Không thể kết nối tới 9Router Gateway tại '{self.base_url}' ({last_error}).\n"
+            f"   -> Vui lòng mở một Terminal mới và chạy: 'npx 9router' để khởi động 9Router Local Gateway!"
+        )
+        print(f"\n{err_msg}\n", flush=True)
+        return {"plan": []}, "9Router Connection Error", err_msg
 
     def _call_9router_api(self, user_command: str, target_url: str = None) -> Dict[str, Any]:
         """Gui HTTP Request chuan OpenAI Chat Completion toi 9Router."""
