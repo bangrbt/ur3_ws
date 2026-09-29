@@ -6,8 +6,8 @@ base_url: "http://localhost:20128/v1"
 # API Key cua 9Router (neu de trong, he thong se doc tu bien moi truong NINE_ROUTER_API_KEY hoac OPENAI_API_KEY)
 api_key: "sk-4e6f373b240d5083-b803ys-53876dfb"
 
-# Model LLM duoc khuyen nghi qua 9Router: gpt-4o-mini, gpt-3.5-turbo, deepseek-chat, gemini-1.5-flash
-model: "gpt-4o-mini"
+# Model LLM duoc khuyen nghi qua 9Router: gemini/gemini-3-flash-preview, gemini/gemini-3.1-flash-lite-preview
+model: "gemini/gemini-3-flash-preview"
 
 # Nhiet do va do dai toi da
 temperature: 0.1

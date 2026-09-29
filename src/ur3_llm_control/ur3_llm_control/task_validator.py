@@ -65,7 +65,10 @@ class TaskValidator:
 
         actions: List[Dict[str, Any]] = plan_data["plan"]
         if len(actions) == 0:
-            return False, "Kế hoạch rong (khong co buoc nao can thuc thi)."
+            thought = plan_data.get("thought", "").strip()
+            if thought:
+                return False, f"Yêu cầu bị từ chối: {thought}"
+            return False, "Kế hoạch rỗng (không có bước nào cần thực thi)."
 
         # Theo doi trang thai ao de kiem tra tien de / hau de (Preconditions / Postconditions)
         simulated_holding = initial_holding

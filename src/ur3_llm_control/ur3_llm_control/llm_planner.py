@@ -78,20 +78,21 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
     * Zone A (zone_a) must receive: {self.zone_mapping['zone_a']}
     * Zone B (zone_b) must receive: {self.zone_mapping['zone_b']}
     * Zone C (zone_c) must receive: {self.zone_mapping['zone_c']}
-- When user asks to arrange/sort objects according to Student ID (hoặc theo mã số sinh viên), generate the full sequence sorting all 3 cubes into their corresponding zones!
 
 ### ALLOWED ROBOT SKILLS:
-- pick(object): Pick an object from table. Args: "object" (string)
-- place(object, zone): Place the currently held object into target zone. Args: "object" (string), "zone" (string)
-- home(): Move arm to home / observation pose. Args: none
-- swap(object_a, object_b): Swap positions of two cubes using zone_temp. Args: "object_a", "object_b"
-- stack(object_top, object_bottom): Stack object_top on top of object_bottom. Args: "object_top", "object_bottom"
-- reset_scene(): Reset all 3 cubes back to initial source trays. Args: none
-- inspect_scene(): Query status of all cubes and zones. Args: none
-- move_above(object): Move gripper above object. Args: "object" (string)
-- move_to_zone(zone): Move gripper above zone. Args: "zone" (string)
-- open_gripper(): Open gripper fingers. Args: none
-- close_gripper(): Close gripper fingers. Args: none
+- pick: Pick an object from table. Args: "object" (string: red_cube, yellow_cube, blue_cube)
+- place: Place the currently held object into target zone. Args: "object" (string), "zone" (string: zone_a, zone_b, zone_c, zone_temp)
+- clear_zones: Clear all cubes from zone_a, zone_b, zone_c back to initial trays. Args: none
+- clear_zone: Clear any cube inside a specific zone. Args: "zone" (string)
+- home: Move arm to home / observation pose. Args: none
+- swap: Swap positions of two cubes using zone_temp. Args: "object_a", "object_b"
+- stack: Stack object_top on top of object_bottom. Args: "object_top", "object_bottom"
+- reset_scene: Reset all 3 cubes back to initial source trays. Args: none
+- inspect_scene: Query status of all cubes and zones. Args: none
+- move_above: Move gripper above object. Args: "object" (string)
+- move_to_zone: Move gripper above zone. Args: "zone" (string)
+- open_gripper: Open gripper fingers. Args: none
+- close_gripper: Close gripper fingers. Args: none
 
 ### ALLOWED OBJECTS:
 - "red_cube"
@@ -102,17 +103,29 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
 - "zone_a"
 - "zone_b"
 - "zone_c"
-- "zone_temp" (temporary holding spot for swaps/clearance)
+- "zone_temp"
 
-### OUTPUT JSON FORMAT:
-{{
-  "thought": "Reasoning explaining user intent and steps...",
-  "plan": [
-    {{"skill": "pick", "object": "red_cube"}},
-    {{"skill": "place", "object": "red_cube", "zone": "zone_b"}},
-    {{"skill": "home"}}
-  ]
-}}
+### OUTPUT JSON FORMAT AND RULES:
+1. When user asks to arrange/sort objects according to Student ID (hoặc theo mã số sinh viên):
+   First step MUST be {{"skill": "clear_zones"}} (to remove any existing cubes from the zones).
+   Then pick and place each cube into its designated zone according to the mapping:
+     - {self.zone_mapping['zone_a']} into zone_a
+     - {self.zone_mapping['zone_b']} into zone_b
+     - {self.zone_mapping['zone_c']} into zone_c
+   Finally end with {{"skill": "home"}}.
+2. Format each skill step as a JSON object with "skill" as a plain string (NEVER with parentheses like "pick(...)").
+   Example:
+   {{
+     "thought": "Reasoning explaining user intent and steps in Vietnamese...",
+     "plan": [
+       {{"skill": "pick", "object": "red_cube"}},
+       {{"skill": "place", "object": "red_cube", "zone": "zone_b"}},
+       {{"skill": "home"}}
+     ]
+   }}
+3. REJECTION OF INVALID COMMANDS:
+   - If the user asks for an object NOT in ALLOWED OBJECTS (such as "quả táo", "apple", "green cube", "ball", etc.): DO NOT substitute or invent items! Set "plan": [] and explain in "thought" that the object is not supported.
+   - If the user asks for a zone NOT in ALLOWED ZONES (such as "vùng D", "zone_d", "vùng E", etc.): DO NOT substitute! Set "plan": [] and explain in "thought" that the zone is invalid.
 """
         return prompt
 
@@ -134,7 +147,7 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
             for test_url in candidate_urls:
                 try:
                     plan_dict = self._call_9router_api(user_command_clean, target_url=test_url)
-                    if plan_dict and "plan" in plan_dict and len(plan_dict["plan"]) > 0:
+                    if plan_dict and "plan" in plan_dict:
                         banner = f"ONLINE LLM (9Router @ {test_url} - Model: {self.model})"
                         conn_status = f"📡 [KẾT NỐI API THÀNH CÔNG] Đang lập kế hoạch qua 9Router Online (URL: {test_url} | Model: {self.model})"
                         print(f"\n[PLANNER MODE] >>> {banner} <<<", flush=True)
@@ -179,10 +192,11 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
                 {"role": "user", "content": user_command}
             ],
             "temperature": self.temperature,
-            "max_tokens": 800
+            "max_tokens": 800,
+            "stream": False
         }
 
-        response = requests.post(url, headers=headers, json=payload, timeout=12)
+        response = requests.post(url, headers=headers, json=payload, timeout=30)
         if response.status_code != 200:
             try:
                 err_json = response.json()
@@ -196,20 +210,78 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
         return self._extract_json(content)
 
     def _extract_json(self, raw_text: str) -> Dict[str, Any]:
-        """Trich xuat JSON an toan tu phan hoi cua LLM."""
+        """Trich xuat va chuan hoa JSON an toan tu phan hoi cua LLM."""
         raw_text = raw_text.strip()
         match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", raw_text)
         if match:
             raw_text = match.group(1).strip()
 
         try:
-            return json.loads(raw_text)
+            parsed = json.loads(raw_text)
         except json.JSONDecodeError:
             start = raw_text.find("{")
             end = raw_text.rfind("}")
             if start != -1 and end != -1:
-                return json.loads(raw_text[start : end + 1])
-            raise
+                parsed = json.loads(raw_text[start : end + 1])
+            else:
+                raise
+
+        # Chuan hoa cac buoc trong plan de tuong thich 100% voi TaskValidator
+        if isinstance(parsed, dict) and "plan" in parsed and isinstance(parsed["plan"], list):
+            normalized_plan = []
+            for item in parsed["plan"]:
+                if isinstance(item, dict):
+                    skill_str = item.get("skill", "").strip()
+                    # Neu LLM tra ve dang function call: pick(red_cube) hoac place(red_cube, zone_b)
+                    func_match = re.match(r"^(\w+)\((.*)\)$", skill_str)
+                    if func_match:
+                        func_name = func_match.group(1)
+                        args = [a.strip().strip("'\"") for a in func_match.group(2).split(",") if a.strip()]
+                        new_item = {"skill": func_name}
+                        if func_name == "pick" and len(args) >= 1:
+                            new_item["object"] = args[0]
+                        elif func_name == "place" and len(args) >= 2:
+                            new_item["object"] = args[0]
+                            new_item["zone"] = args[1]
+                        elif func_name == "swap" and len(args) >= 2:
+                            new_item["object_a"] = args[0]
+                            new_item["object_b"] = args[1]
+                        elif func_name == "stack" and len(args) >= 2:
+                            new_item["object_top"] = args[0]
+                            new_item["object_bottom"] = args[1]
+                        elif func_name in ["move_above", "clear_zone"] and len(args) >= 1:
+                            if func_name == "move_above":
+                                new_item["object"] = args[0]
+                            else:
+                                new_item["zone"] = args[0]
+                        elif func_name == "move_to_zone" and len(args) >= 1:
+                            new_item["zone"] = args[0]
+                        normalized_plan.append(new_item)
+                    else:
+                        normalized_plan.append(item)
+                elif isinstance(item, str):
+                    func_match = re.match(r"^(\w+)\((.*)\)$", item.strip())
+                    if func_match:
+                        func_name = func_match.group(1)
+                        args = [a.strip().strip("'\"") for a in func_match.group(2).split(",") if a.strip()]
+                        new_item = {"skill": func_name}
+                        if func_name == "pick" and len(args) >= 1:
+                            new_item["object"] = args[0]
+                        elif func_name == "place" and len(args) >= 2:
+                            new_item["object"] = args[0]
+                            new_item["zone"] = args[1]
+                        elif func_name == "swap" and len(args) >= 2:
+                            new_item["object_a"] = args[0]
+                            new_item["object_b"] = args[1]
+                        elif func_name == "stack" and len(args) >= 2:
+                            new_item["object_top"] = args[0]
+                            new_item["object_bottom"] = args[1]
+                        normalized_plan.append(new_item)
+                    else:
+                        normalized_plan.append({"skill": item.strip()})
+            parsed["plan"] = normalized_plan
+
+        return parsed
 
     def _smart_rule_planner(self, command: str) -> Dict[str, Any]:
         """
