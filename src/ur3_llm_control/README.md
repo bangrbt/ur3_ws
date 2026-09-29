@@ -1,6 +1,6 @@
 # Package `ur3_llm_control` - Điều khiển Robot UR3 bằng LLM & Skill-based Planning
 
-> **Báo cáo Thực hành Bài 2 - Môn học: Xử lý ảnh và thị giác Robot**  
+> **Báo cáo Thực hành Bài 2 - Môn học: HRI - Tương tác Người - Robot**  
 > **Sinh viên thực hiện:** Lê Anh Tuấn Bằng  
 > **Mã số sinh viên (MSSV):** `23020723`  
 > **Nhánh Git bài tập:** `assignments_2`  
