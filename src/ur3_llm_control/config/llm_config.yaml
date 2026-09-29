@@ -6,14 +6,15 @@ base_url: "http://localhost:20128/v1"
 # API Key cua 9Router (neu de trong, he thong se doc tu bien moi truong NINE_ROUTER_API_KEY hoac OPENAI_API_KEY)
 api_key: "sk-4e6f373b240d5083-b803ys-53876dfb"
 
-# Model LLM duoc khuyen nghi qua 9Router: gemini/gemini-3-flash-preview, gemini/gemini-3.1-flash-lite-preview
-model: "gemini/gemini-3-flash-preview"
+# Model LLM duoc khuyen nghi qua 9Router: gemini/gemini-3.5-flash-lite
+model: "gemini/gemini-3.5-flash-lite"
 
 # Nhiet do va do dai toi da
 temperature: 0.1
 max_tokens: 800
 
-# Che do du phong Offline thong minh:
-# Neu chua co API key hoac gap loi mang, he thong tu dong phan tich cau lenh bang bo parser logic
-# Giup giang vien / sinh vien van chay demo 100% tinh nang ma khong bi loi!
-fallback_to_smart_planner: true
+# Che do Offline Smart Planner: MAC DINH TAT (false).
+# Chay 100% ONLINE LLM goi truc tiep qua 9Router Gateway.
+# Chuc nang Offline CHI duoc phep bat khi nguoi dung chu dong doi gia tri nay thanh true.
+fallback_to_smart_planner: false
+

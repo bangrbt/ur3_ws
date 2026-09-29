@@ -113,16 +113,20 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
 
 ### OPTIMAL PLANNING STRATEGY (CRITICAL FOR MINIMUM TIME & EXECUTION):
 1. PRESERVE CORRECT POSITIONS: If an object is ALREADY in its designated target zone, DO NOT touch or move it!
-2. NEVER return all cubes to waiting trays (DO NOT call clear_zones unless explicitly asked to reset).
-3. DIRECT PLACEMENT: If an object is not in its target zone and its target zone is currently EMPTY, pick it and place it DIRECTLY into that target zone.
-4. TWO-OBJECT CONFLICT / SWAP RESOLUTION:
-   If two objects are in each other's target zones (e.g. obj1 is in target of obj2, and obj2 is in target of obj1):
-   - Step 1: Pick obj1 and place it into "zone_temp".
-   - Step 2: Pick obj2 and place it DIRECTLY into its correct target zone (do NOT put it into waiting tray).
+2. DIRECT PLACEMENT (HIGHEST PRIORITY FOR ANY MOVE):
+   If an object is not in its target zone, and its target zone is currently EMPTY:
+   -> Pick that object from its current location and place it DIRECTLY into its target zone!
+   -> NEVER move it to "zone_temp" or any waiting tray if its target zone is empty!
+   -> Example: If red_cube is at wait tray, and yellow_cube is at wait tray, and zone_b & zone_c are empty:
+      Move yellow_cube DIRECTLY into zone_b, and red_cube DIRECTLY into zone_c. Do NOT use zone_temp!
+3. TWO-OBJECT CONFLICT / SWAP RESOLUTION (DEADLOCK CYCLE ONLY):
+   ONLY when two objects occupy each other's target zones simultaneously (e.g. obj1 is in target of obj2, and obj2 is in target of obj1, and NEITHER target zone is empty):
+   - Step 1: Pick obj1 and place it into "zone_temp" (now obj2's target zone is free!).
+   - Step 2: Pick obj2 and place it DIRECTLY into its correct target zone (do NOT put into waiting tray).
    - Step 3: Pick obj1 from "zone_temp" and place it DIRECTLY into its correct target zone.
-5. If user asks to move an object into a zone where it is already located, return {{"thought": "Object already in target zone.", "plan": [{{"skill": "home"}}]}}.
-6. End all operational plans with {{"skill": "home"}}.
-7. REJECTION: If user asks for an object or zone not in allowed lists (e.g., "quả táo", "vùng D"), return "plan": [] and explain why in "thought".
+4. If user asks to move an object into a zone where it is already located, return {{"thought": "Object already in target zone.", "plan": [{{"skill": "home"}}]}}.
+5. End all operational plans with {{"skill": "home"}}.
+6. REJECTION: If user asks for an object or zone not in allowed lists (e.g., "quả táo", "vùng D"), return "plan": [] and explain why in "thought".
 
 ### OUTPUT JSON FORMAT:
 {{
@@ -162,25 +166,27 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
                 except Exception as e:
                     last_error = e
 
-        # 2. Che do Offline Smart Planner (Fallback)
+        # 2. Che do Offline Smart Planner: CHI KHI NGUOI DUNG CHO PHEP (fallback_enabled == True)
         if self.fallback_enabled:
             reason = f"Không thể kết nối tới 9Router API / Internet ({last_error})" if last_error else "Chưa cấu hình API Key 9Router"
-            banner = "OFFLINE Smart Planner (Chế độ mô phỏng nội bộ)"
+            banner = "OFFLINE Smart Planner (Chế độ mô phỏng nội bộ - Đã được người dùng cho phép)"
             conn_status = (
                 f"⚠️ [CẢNH BÁO MẤT KẾT NỐI API]: {reason}.\n"
-                f"   -> Hệ thống đang tự động sử dụng bộ lập kế hoạch nội bộ (Offline Smart Planner)!"
+                f"   -> Hệ thống đang sử dụng bộ lập kế hoạch nội bộ vì fallback_to_smart_planner=True."
             )
             print(f"\n[PLANNER MODE] >>> {banner} <<<", flush=True)
             print(f"{conn_status}\n", flush=True)
             plan_dict = self._smart_rule_planner(user_command_clean, scene_state=scene_state)
             return plan_dict, banner, conn_status
 
+        # 3. Khi fallback_enabled == False (Mac dinh): TU CHOI CHAY OFFLINE VA BAO LOI RO RANG!
         err_msg = (
-            f"❌ [LỖI KẾT NỐI 9ROUTER]: Không thể kết nối tới 9Router Gateway tại '{self.base_url}' ({last_error}).\n"
-            f"   -> Vui lòng mở một Terminal mới và chạy: 'npx 9router' để khởi động 9Router Local Gateway!"
+            f"❌ [LỖI KẾT NỐI 9ROUTER API]: Không thể kết nối tới 9Router LLM Gateway tại '{self.base_url}' ({last_error}).\n"
+            f"   -> Chế độ Offline đã bị TẮT theo yêu cầu người dùng (100% Online LLM qua 9Router).\n"
+            f"   -> Vui lòng kiểm tra terminal chạy 'npx 9router' để đảm bảo gateway đang hoạt động!"
         )
         print(f"\n{err_msg}\n", flush=True)
-        return {"plan": []}, "9Router Connection Error", err_msg
+        return {"thought": f"Lỗi kết nối 9Router: {last_error}", "plan": []}, "9Router Connection Error", err_msg
 
     def _call_9router_api(self, user_command: str, target_url: str = None, scene_state: dict = None) -> Dict[str, Any]:
         """Gui HTTP Request chuan OpenAI Chat Completion toi 9Router."""
@@ -195,29 +201,51 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
         # Build dynamic prompt with real-time scene state
         system_prompt = self._build_system_prompt(scene_state=scene_state)
 
-        payload = {
-            "model": self.model,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_command}
-            ],
-            "temperature": self.temperature,
-            "max_tokens": 1500,
-            "stream": False
-        }
+        # Danh sach model online tren 9Router trong truong hop 1 model bi rate limit (429/503)
+        candidate_models = [self.model]
+        for fallback_m in ["gemini/gemini-3.1-flash-lite-preview", "gemini/gemini-3.5-flash-lite", "gemini/gemini-3.6-flash"]:
+            if fallback_m not in candidate_models:
+                candidate_models.append(fallback_m)
 
-        response = requests.post(url, headers=headers, json=payload, timeout=30)
-        if response.status_code != 200:
+        last_resp_err = None
+        for current_model in candidate_models:
+            payload = {
+                "model": current_model,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_command}
+                ],
+                "temperature": self.temperature,
+                "max_tokens": 1500,
+                "stream": False
+            }
+
             try:
-                err_json = response.json()
-                err_msg = err_json.get("error", {}).get("message", response.text)
-            except Exception:
-                err_msg = response.text
-            raise RuntimeError(f"9Router trả về lỗi (Mã {response.status_code}): {err_msg}")
+                response = requests.post(url, headers=headers, json=payload, timeout=25)
+                if response.status_code == 200:
+                    data = response.json()
+                    content = data["choices"][0]["message"]["content"]
+                    self.model = current_model
+                    return self._extract_json(content)
+                elif response.status_code in [429, 503]:
+                    try:
+                        err_json = response.json()
+                        err_msg = err_json.get("error", {}).get("message", response.text)
+                    except Exception:
+                        err_msg = response.text
+                    last_resp_err = f"Model {current_model} bị quá tải ({response.status_code}): {err_msg}"
+                    continue
+                else:
+                    try:
+                        err_json = response.json()
+                        err_msg = err_json.get("error", {}).get("message", response.text)
+                    except Exception:
+                        err_msg = response.text
+                    raise RuntimeError(f"9Router trả về lỗi (Mã {response.status_code}): {err_msg}")
+            except requests.exceptions.RequestException as req_err:
+                raise req_err
 
-        data = response.json()
-        content = data["choices"][0]["message"]["content"]
-        return self._extract_json(content)
+        raise RuntimeError(last_resp_err or "Tất cả các model online trên 9Router đều không phản hồi.")
 
     def _extract_json(self, raw_text: str) -> Dict[str, Any]:
         """Trich xuat va chuan hoa JSON an toan tu phan hoi cua LLM."""
@@ -239,6 +267,7 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
         # Chuan hoa cac buoc trong plan de tuong thich 100% voi TaskValidator
         if isinstance(parsed, dict) and "plan" in parsed and isinstance(parsed["plan"], list):
             normalized_plan = []
+            last_picked = None
             for item in parsed["plan"]:
                 if isinstance(item, dict):
                     skill_str = item.get("skill", "").strip()
@@ -247,13 +276,14 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
                     if skill_str == "pick_and_place":
                         params = item.get("parameters", item)
                         obj = params.get("object", "")
-                        tgt_z = params.get("end_zone", params.get("zone", params.get("target_zone", "")))
+                        tgt_z = params.get("end_pos", params.get("end_zone", params.get("zone", params.get("target_zone", ""))))
                         if obj and tgt_z:
                             normalized_plan.append({"skill": "pick", "object": obj})
                             normalized_plan.append({"skill": "place", "object": obj, "zone": tgt_z})
+                            last_picked = obj
                             continue
 
-                    # Neu LLM tra ve dang function call: pick(red_cube) hoac place(red_cube, zone_b)
+                    # Neu LLM tra ve dang function call: pick(red_cube) hoac place(red_cube, zone_b) / place(zone_b)
                     func_match = re.match(r"^(\w+)\((.*)\)$", skill_str)
                     if func_match:
                         func_name = func_match.group(1)
@@ -261,9 +291,15 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
                         new_item = {"skill": func_name}
                         if func_name == "pick" and len(args) >= 1:
                             new_item["object"] = args[0]
-                        elif func_name == "place" and len(args) >= 2:
-                            new_item["object"] = args[0]
-                            new_item["zone"] = args[1]
+                            last_picked = args[0]
+                        elif func_name == "place":
+                            if len(args) >= 2:
+                                new_item["object"] = args[0]
+                                new_item["zone"] = args[1]
+                                last_picked = args[0]
+                            elif len(args) == 1:
+                                new_item["object"] = last_picked
+                                new_item["zone"] = args[0]
                         elif func_name == "swap" and len(args) >= 2:
                             new_item["object_a"] = args[0]
                             new_item["object_b"] = args[1]
@@ -279,6 +315,10 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
                             new_item["zone"] = args[0]
                         normalized_plan.append(new_item)
                     else:
+                        if item.get("skill") == "pick" and "object" in item:
+                            last_picked = item["object"]
+                        elif item.get("skill") == "place" and "object" not in item and last_picked:
+                            item["object"] = last_picked
                         normalized_plan.append(item)
                 elif isinstance(item, str):
                     func_match = re.match(r"^(\w+)\((.*)\)$", item.strip())
@@ -288,9 +328,15 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
                         new_item = {"skill": func_name}
                         if func_name == "pick" and len(args) >= 1:
                             new_item["object"] = args[0]
-                        elif func_name == "place" and len(args) >= 2:
-                            new_item["object"] = args[0]
-                            new_item["zone"] = args[1]
+                            last_picked = args[0]
+                        elif func_name == "place":
+                            if len(args) >= 2:
+                                new_item["object"] = args[0]
+                                new_item["zone"] = args[1]
+                                last_picked = args[0]
+                            elif len(args) == 1:
+                                new_item["object"] = last_picked
+                                new_item["zone"] = args[0]
                         elif func_name == "swap" and len(args) >= 2:
                             new_item["object_a"] = args[0]
                             new_item["object_b"] = args[1]
@@ -300,6 +346,11 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
                         normalized_plan.append(new_item)
                     else:
                         normalized_plan.append({"skill": item.strip()})
+
+            # Dam bao luon co buoc home cuoi cung de robot ve tu the an toan
+            if normalized_plan and normalized_plan[-1].get("skill") != "home":
+                normalized_plan.append({"skill": "home"})
+
             parsed["plan"] = normalized_plan
 
         return parsed
