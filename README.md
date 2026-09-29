@@ -1,6 +1,6 @@
 # Workspace `ur3_ws` - Universal Robots UR3 ROS 2 Humble Project
 
-> **Kho lưu trữ tổng hợp các bài tập môn học Robot & Thị giác máy tính**  
+> **Kho lưu trữ tổng hợp các bài tập môn học HRI - Tương tác Người - Robot**  
 > **Sinh viên thực hiện:** Lê Anh Tuấn Bằng  
 > **Mã số sinh viên (MSSV):** `23020723`  
 > **Hệ điều hành:** Ubuntu 22.04 LTS (Jammy Jellyfish)  
