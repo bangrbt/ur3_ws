@@ -82,19 +82,6 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
 2. DO NOT generate joint angles, trajectory coordinates, or low-level motor commands.
 3. OUTPUT STRICT JSON ONLY with keys "thought" and "plan". No markdown formatting outside JSON.
 
-### STUDENT & PERSONALIZATION CONTEXT:
-- Student Name: {self.student_name}
-- Student ID (MSSV): {self.student_id}
-- Rule: XX = last two digits of Student ID = {self.xx}. P = {self.xx} mod 6 = {self.p_value}.
-- Mapped Target Zones for P = {self.p_value}:
-    * Zone A (zone_a) must receive: {self.zone_mapping['zone_a']}
-    * Zone B (zone_b) must receive: {self.zone_mapping['zone_b']}
-    * Zone C (zone_c) must receive: {self.zone_mapping['zone_c']}
-
-### REAL-TIME WORKSPACE SCENE STATE:
-{chr(10).join(state_lines)}
-- Zone occupants: {occ_str}
-
 ### ALLOWED ROBOT SKILLS:
 - pick: Pick an object from table. Args: "object" (string: red_cube, yellow_cube, blue_cube)
 - place: Place the currently held object into target zone. Args: "object" (string), "zone" (string: zone_a, zone_b, zone_c, zone_temp)
@@ -111,29 +98,45 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
 ### ALLOWED ZONES:
 - "zone_a", "zone_b", "zone_c", "zone_temp"
 
-### OPTIMAL PLANNING STRATEGY (CRITICAL FOR MINIMUM TIME & EXECUTION):
-1. PRESERVE CORRECT POSITIONS: If an object is ALREADY in its designated target zone, DO NOT touch or move it!
-2. DIRECT PLACEMENT (HIGHEST PRIORITY FOR ANY MOVE):
-   If an object is not in its target zone, and its target zone is currently EMPTY:
-   -> Pick that object from its current location and place it DIRECTLY into its target zone!
-   -> NEVER move it to "zone_temp" or any waiting tray if its target zone is empty!
-   -> Example: If red_cube is at wait tray, and yellow_cube is at wait tray, and zone_b & zone_c are empty:
-      Move yellow_cube DIRECTLY into zone_b, and red_cube DIRECTLY into zone_c. Do NOT use zone_temp!
-3. TWO-OBJECT CONFLICT / SWAP RESOLUTION (DEADLOCK CYCLE ONLY):
-   ONLY when two objects occupy each other's target zones simultaneously (e.g. obj1 is in target of obj2, and obj2 is in target of obj1, and NEITHER target zone is empty):
-   - Step 1: Pick obj1 and place it into "zone_temp" (now obj2's target zone is free!).
-   - Step 2: Pick obj2 and place it DIRECTLY into its correct target zone (do NOT put into waiting tray).
-   - Step 3: Pick obj1 from "zone_temp" and place it DIRECTLY into its correct target zone.
-4. If user asks to move an object into a zone where it is already located, return {{"thought": "Object already in target zone.", "plan": [{{"skill": "home"}}]}}.
-5. End all operational plans with {{"skill": "home"}}.
-6. REJECTION: If user asks for an object or zone not in allowed lists (e.g., "quả táo", "vùng D"), return "plan": [] and explain why in "thought".
+### REAL-TIME WORKSPACE SCENE STATE:
+{chr(10).join(state_lines)}
+- Zone occupants: {occ_str}
+
+### ⚠️ CRITICAL EXECUTION PRINCIPLES (NÓI GÌ LÀM NẤY - TUYỆT ĐỐI TUÂN THỦ Ý ĐỊNH NGƯỜI DÙNG):
+1. USER EXPLICIT COMMAND SUPREMACY (ƯU TIÊN TUYỆT ĐỐI CHO LỆNH TỪNG KHỐI / Ô CỤ THỂ):
+   - Khi người dùng chỉ định một khối vào một ô cụ thể (hoặc một ô bất kỳ):
+     BẠN PHẢI TUÂN THEO 100% ĐÍCH ĐẾN MÀ NGƯỜI DÙNG YÊU CẦU!
+     TUYỆT ĐỐI KHÔNG ĐƯỢC tự ý đổi ô theo màu khối hay theo bảng mã sinh viên!
+   - Ví dụ:
+     * "Đưa khối đỏ vào ô A" / "Put red cube in zone A" -> BẮT BUỘC đặt red_cube vào zone_a! (KHÔNG ĐƯỢC đặt vào zone_c hay zone_b).
+     * "Đưa khối vàng vào ô C" / "Put yellow cube in zone C" -> BẮT BUỘC đặt yellow_cube vào zone_c! (KHÔNG ĐƯỢC đặt vào zone_b).
+     * "Đặt khối xanh vào ô B" / "Put blue cube in zone B" -> BẮT BUỘC đặt blue_cube vào zone_b! (KHÔNG ĐƯỢC đặt vào zone_a).
+     * "Đưa khối đỏ vào ô bất kỳ" / "Đặt vào ô trống bất kỳ" -> Chọn 1 ô đang trống (zone_a, zone_b, hoặc zone_c) và đặt red_cube vào đó!
+   - Nếu ô mục tiêu đang có khối khác chiếm giữ:
+     * Bước 1: Gắp khối đang chiếm giữ chuyển tạm sang "zone_temp".
+     * Bước 2: Gắp khối theo yêu cầu đặt vào ô mục tiêu.
+
+2. STUDENT ID SORTING (CHỈ KHI NGƯỜI DÙNG NÊU RÕ "MÃ SINH VIÊN" / "MSSV" / "STUDENT ID"):
+   - Bảng ánh xạ theo MSSV DƯỚI ĐÂY CHỈ VÀ CHỈ ĐƯỢC ÁP DỤNG khi câu lệnh người dùng nói rõ "mã sinh viên", "student id", "mssv", "theo mã", hoặc "sắp xếp toàn bộ":
+     * Sinh viên: {self.student_name} | MSSV: {self.student_id} (XX = {self.xx} -> P = {self.p_value})
+     * Quy ước cho P = {self.p_value}:
+       - zone_a: {self.zone_mapping['zone_a']}
+       - zone_b: {self.zone_mapping['zone_b']}
+       - zone_c: {self.zone_mapping['zone_c']}
+   - Đối với tất cả các câu lệnh khác (gắp 1 khối, đổi chỗ, xếp chồng, đặt vào ô bất kỳ), BẢNG ÁNH XẠ NÀY HOÀN TOÀN VÔ HIỆU HÓA!
+
+3. BỎ QUA THAO TÁC THỪA (PRESERVE CORRECT POSITIONS):
+   - Nếu khối đã ở sẵn trong ô mà người dùng yêu cầu, KHÔNG ĐƯỢC gắp lên rồi thả lại! Trả về {{"thought": "Khối đã ở sẵn vị trí yêu cầu.", "plan": [{{"skill": "home"}}]}}.
+
+4. Kết thúc mọi kế hoạch thao tác bằng {{"skill": "home"}}.
+5. TỪ CHỐI LỆNH KHÔNG HỢP LỆ: Nếu yêu cầu vật thể hoặc ô không có trong danh sách cho phép (ví dụ "quả táo", "vùng D"), trả về "plan": [] và giải thích trong "thought".
 
 ### OUTPUT JSON FORMAT:
 {{
-  "thought": "Reasoning explaining user intent, current state, and optimal steps in Vietnamese...",
+  "thought": "Reasoning in Vietnamese explaining user intent and exact steps...",
   "plan": [
     {{"skill": "pick", "object": "red_cube"}},
-    {{"skill": "place", "object": "red_cube", "zone": "zone_b"}},
+    {{"skill": "place", "object": "red_cube", "zone": "zone_a"}},
     {{"skill": "home"}}
   ]
 }}
@@ -159,6 +162,9 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
                 try:
                     plan_dict = self._call_9router_api(user_command_clean, target_url=test_url, scene_state=scene_state)
                     if plan_dict and "plan" in plan_dict:
+                        non_home = [s for s in plan_dict["plan"] if s.get("skill") != "home"]
+                        if not non_home and "bỏ qua" not in plan_dict.get("thought", "").lower():
+                            plan_dict["thought"] += " [Tối ưu: Tất cả các vật yêu cầu đã ở đúng vị trí mục tiêu, bỏ qua các bước gắp thả thừa.]"
                         banner = f"ONLINE LLM (9Router @ {test_url} - Model: {self.model})"
                         conn_status = f"📡 [KẾT NỐI API THÀNH CÔNG] Đang lập kế hoạch qua 9Router Online (URL: {test_url} | Model: {self.model})"
                         print(f"\n[PLANNER MODE] >>> {banner} <<<", flush=True)
@@ -177,6 +183,7 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
             print(f"\n[PLANNER MODE] >>> {banner} <<<", flush=True)
             print(f"{conn_status}\n", flush=True)
             plan_dict = self._smart_rule_planner(user_command_clean, scene_state=scene_state)
+            plan_dict["plan"] = self._prune_redundant_moves(plan_dict.get("plan", []), scene_state=scene_state)
             return plan_dict, banner, conn_status
 
         # 3. Khi fallback_enabled == False (Mac dinh): TU CHOI CHAY OFFLINE VA BAO LOI RO RANG!
@@ -223,10 +230,28 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
             try:
                 response = requests.post(url, headers=headers, json=payload, timeout=25)
                 if response.status_code == 200:
-                    data = response.json()
-                    content = data["choices"][0]["message"]["content"]
+                    try:
+                        data = response.json()
+                        content = data["choices"][0]["message"]["content"]
+                    except Exception:
+                        # Fallback xu ly truong hop gateway tra ve Server-Sent Events (SSE chunk)
+                        full_content = []
+                        for line in response.text.splitlines():
+                            line = line.strip()
+                            if line.startswith("data:") and not line.endswith("[DONE]"):
+                                chunk_str = line[5:].strip()
+                                try:
+                                    chunk = json.loads(chunk_str)
+                                    delta = chunk.get("choices", [{}])[0].get("delta", {})
+                                    if "content" in delta:
+                                        full_content.append(delta["content"])
+                                except Exception:
+                                    pass
+                        content = "".join(full_content)
+                        if not content:
+                            raise
                     self.model = current_model
-                    return self._extract_json(content)
+                    return self._extract_json(content, scene_state=scene_state)
                 elif response.status_code in [429, 503]:
                     try:
                         err_json = response.json()
@@ -247,7 +272,7 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
 
         raise RuntimeError(last_resp_err or "Tất cả các model online trên 9Router đều không phản hồi.")
 
-    def _extract_json(self, raw_text: str) -> Dict[str, Any]:
+    def _extract_json(self, raw_text: str, scene_state: dict = None) -> Dict[str, Any]:
         """Trich xuat va chuan hoa JSON an toan tu phan hoi cua LLM."""
         raw_text = raw_text.strip()
         match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", raw_text)
@@ -351,9 +376,82 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
             if normalized_plan and normalized_plan[-1].get("skill") != "home":
                 normalized_plan.append({"skill": "home"})
 
+            # Toi uu: Tu dong loai bo cac thao tac pick-and-place thua neu vat da o dung vi tri dich
+            if scene_state:
+                normalized_plan = self._prune_redundant_moves(normalized_plan, scene_state=scene_state)
+
             parsed["plan"] = normalized_plan
 
         return parsed
+
+    def _prune_redundant_moves(self, plan: List[Dict[str, Any]], scene_state: dict = None) -> List[Dict[str, Any]]:
+        """
+        Loc bo cac buoc pick-and-place thua thai khi vat da o san vi tri dich:
+        Neu vat the X da nam o zone Z, loai bo thao tac [pick(X), place(X, Z)].
+        """
+        if not plan or not scene_state:
+            return plan
+
+        cube_locs = dict(scene_state.get("cube_locations", {}))
+        zone_occs = dict(scene_state.get("zone_occupants", {}))
+
+        pruned = []
+        skip_indices = set()
+        n = len(plan)
+
+        for i in range(n):
+            if i in skip_indices:
+                continue
+
+            step = plan[i]
+            skill = step.get("skill", "").strip().lower()
+
+            if skill == "pick":
+                obj = step.get("object")
+                # Tim buoc place tiep theo cho vat obj nay
+                place_idx = None
+                for j in range(i + 1, n):
+                    j_skill = plan[j].get("skill", "").strip().lower()
+                    if j_skill == "place":
+                        j_obj = plan[j].get("object") or obj
+                        if j_obj == obj:
+                            place_idx = j
+                            break
+                    elif j_skill == "pick":
+                        break
+
+                if place_idx is not None:
+                    target_zone = plan[place_idx].get("zone")
+                    cur_loc = cube_locs.get(obj)
+                    is_in_zone = (cur_loc == target_zone) or (zone_occs.get(target_zone) == obj)
+
+                    if is_in_zone and target_zone in ["zone_a", "zone_b", "zone_c", "zone_temp"]:
+                        print(f"[OPTIMIZER] Bỏ qua thao tác thừa: '{obj}' đã ở sẵn '{target_zone}', không gắp lên rồi thả lại.", flush=True)
+                        skip_indices.add(i)
+                        skip_indices.add(place_idx)
+                        for k in range(i + 1, place_idx):
+                            k_skill = plan[k].get("skill", "").strip().lower()
+                            if k_skill in ["move_above", "move_to_zone", "open_gripper", "close_gripper"]:
+                                skip_indices.add(k)
+                        continue
+
+            if i not in skip_indices:
+                pruned.append(step)
+                if skill == "place":
+                    p_obj = step.get("object")
+                    p_zone = step.get("zone")
+                    if p_obj and p_zone:
+                        cube_locs[p_obj] = p_zone
+                        zone_occs[p_zone] = p_obj
+
+        non_home_steps = [s for s in pruned if s.get("skill") != "home"]
+        if not non_home_steps:
+            return [{"skill": "home"}]
+
+        if pruned[-1].get("skill") != "home":
+            pruned.append({"skill": "home"})
+
+        return pruned
 
     def _smart_rule_planner(self, command: str, scene_state: dict = None) -> Dict[str, Any]:
         """
@@ -478,6 +576,16 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
             if inv_z in cmd_clean:
                 invalid_zone = inv_z.replace(" ", "_")
                 break
+
+        # Kiem tra yeu cau dua vao o bat ky / ngau nhien
+        if not target_zone and any(kw in cmd_clean for kw in ["bat ky", "o nao cung duoc", "vung bat ky", "any zone", "arbitrary", "ngau nhien"]):
+            zone_occs = scene_state.get("zone_occupants", {}) if scene_state else {}
+            for z in ["zone_a", "zone_b", "zone_c"]:
+                if not zone_occs.get(z):
+                    target_zone = z
+                    break
+            if not target_zone:
+                target_zone = "zone_a"
 
         target_obj = cubes_in_cmd[0] if cubes_in_cmd else invalid_obj
         if not target_zone and invalid_zone:

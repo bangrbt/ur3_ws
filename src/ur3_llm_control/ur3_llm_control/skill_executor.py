@@ -17,9 +17,12 @@ home() ........... SUCCESS
 TASK SUCCESS
 """
 
+from __future__ import annotations
 import time
-from typing import List, Dict, Any
-from .robot_skills import RobotSkills
+from typing import List, Dict, Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .robot_skills import RobotSkills
 
 
 class SkillExecutor:
@@ -106,10 +109,39 @@ class SkillExecutor:
         self._log("EXECUTION:")
         all_success = True
 
-        for step in plan:
+        for idx, step in enumerate(plan):
             skill_name = step.get("skill", "").strip().lower()
             call_repr = self.format_skill_call(step)
             dots = "." * max(2, 28 - len(call_repr))
+
+            # Kiem tra vat the da o san vi tri dich (bo qua khong gap len roi tha lai)
+            if skill_name == "pick":
+                obj = step.get("object")
+                target_zone = None
+                for next_idx in range(idx + 1, len(plan)):
+                    next_s = plan[next_idx]
+                    if next_s.get("skill", "").strip().lower() == "place":
+                        if (next_s.get("object") or obj) == obj:
+                            target_zone = next_s.get("zone")
+                            break
+                    elif next_s.get("skill", "").strip().lower() == "pick":
+                        break
+
+                if target_zone:
+                    cur_loc = self.skills.get_cube_locations().get(obj)
+                    is_occupied = (self.skills.zone_occupants.get(target_zone) == obj)
+                    if cur_loc == target_zone or is_occupied:
+                        self._log(f"{call_repr} {dots} SKIPPED (Vật đã ở sẵn vị trí '{target_zone}')")
+                        continue
+
+            elif skill_name == "place":
+                obj = step.get("object")
+                target_zone = step.get("zone")
+                cur_loc = self.skills.get_cube_locations().get(obj)
+                is_occupied = (self.skills.zone_occupants.get(target_zone) == obj)
+                if self.skills.holding_object is None and (cur_loc == target_zone or is_occupied):
+                    self._log(f"{call_repr} {dots} SKIPPED (Vật đã ở sẵn vị trí '{target_zone}')")
+                    continue
 
             status = "FAILED"
             try:
