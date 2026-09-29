@@ -183,7 +183,13 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
         }
 
         response = requests.post(url, headers=headers, json=payload, timeout=12)
-        response.raise_for_status()
+        if response.status_code != 200:
+            try:
+                err_json = response.json()
+                err_msg = err_json.get("error", {}).get("message", response.text)
+            except Exception:
+                err_msg = response.text
+            raise RuntimeError(f"9Router trả về lỗi (Mã {response.status_code}): {err_msg}")
 
         data = response.json()
         content = data["choices"][0]["message"]["content"]
