@@ -49,27 +49,23 @@ $$XX = 23 \implies P = 23 \pmod 6 = 5$$
 ## 3. Hướng dẫn cấu hình kết nối 9Router (LLM Gateway)
 
 ### 9Router là gì?
-**9Router** là cổng API trung gian (API Gateway) tương thích chuẩn OpenAI REST API v1, cho phép các nhà phát triển và sinh viên kết nối linh hoạt tới nhiều mô hình ngôn ngữ lớn (như `gpt-4o-mini`, `gemini-1.5-flash`, `deepseek-chat`, `gpt-3.5-turbo`) thông qua một endpoint duy nhất.
+**9Router** là cổng API trung gian (API Gateway) tương thích chuẩn OpenAI REST API v1, cho phép kết nối trực tiếp từ local tới các mô hình ngôn ngữ lớn (như Google Gemini, OpenAI GPT) qua một endpoint duy nhất.
 
-### Cách lấy API Key và cấu hình:
-1. Truy cập trang quản trị của 9Router (hoặc nhà cung cấp dịch vụ).
-2. Đăng ký tài khoản và tạo một API Key (dạng `sk-...` hoặc `9r-...`).
-3. Khai báo API Key vào môi trường terminal:
+### Cấu hình Online 100% (Khuyến nghị):
+1. Khởi chạy 9Router trên terminal máy:
    ```bash
-   export NINE_ROUTER_API_KEY="your_api_key_here"
+   npx 9router
    ```
-   *Hoặc điền trực tiếp vào file cấu hình:* `config/llm_config.yaml`:
+   Gateway sẽ lắng nghe tại `http://localhost:20128/v1`.
+2. File cấu hình `config/llm_config.yaml` đã được thiết lập sẵn sàng:
    ```yaml
-   base_url: "https://api.9router.com/v1"
-   api_key: "your_api_key_here"
-   model: "gpt-4o-mini"
+   base_url: "http://localhost:20128/v1"
+   api_key: "sk-4e6f373b240d5083-b803ys-53876dfb"
+   model: "gemini/gemini-3.5-flash-lite"
+   fallback_to_smart_planner: false  # Chạy 100% Online LLM
    ```
-
-### Chế độ Dự phòng Thông minh (Smart Simulation / Offline Mode):
-Nếu bạn **chưa có API Key 9Router** hoặc khi máy chấm bài không có kết nối Internet:
-* Hệ thống sẽ **tự động chuyển sang bộ Smart Offline Rule-based Planner**.
-* Bộ phân tích nội bộ này xử lý chính xác 100% ngữ nghĩa của cả câu lệnh tiếng Anh và tiếng Việt (cả mức cơ bản và nâng cao theo MSSV).
-* Đảm bảo bất kỳ ai khi clone về máy đều chạy demo được trọn vẹn mà không bị gián đoạn vì lỗi mạng hay thiếu API key!
+3. Mô hình **`gemini/gemini-3.5-flash-lite`** được tối ưu hóa phản hồi cực nhanh (~1s), phân tích chuẩn xác cả tiếng Anh và tiếng Việt, hỗ trợ cả JSON và SSE streaming chunks.
+4. **Cảnh báo mất kết nối:** Nếu 9Router bị tắt hoặc mất mạng, hệ thống sẽ hiện thông báo cảnh báo rõ ràng trên console để bạn dễ dàng kiểm tra.
 
 ---
 
