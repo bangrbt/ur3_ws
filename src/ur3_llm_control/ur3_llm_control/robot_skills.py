@@ -35,7 +35,7 @@ from rclpy.node import Node
 from rclpy.action import ActionClient
 
 from sensor_msgs.msg import JointState
-from std_msgs.msg import String
+from std_msgs.msg import String, Float64
 from geometry_msgs.msg import Pose, Point, Quaternion, PoseStamped
 from shape_msgs.msg import SolidPrimitive
 from moveit_msgs.msg import (
@@ -83,6 +83,16 @@ class RobotSkills:
 
         # Dynamic Cube State Publisher
         self.cube_state_pub = self.node.create_publisher(String, "/scene/cube_states", 10)
+        # Gripper Command Publishers (ket noi truc tiep toi ros_gz_bridge -> Gazebo)
+        self.gripper_left_pub = self.node.create_publisher(Float64, "/gripper/left_cmd", 10)
+        self.gripper_right_pub = self.node.create_publisher(Float64, "/gripper/right_cmd", 10)
+
+        # Gripper Joint State Publisher (phuc vu hien thi co bop muot ma lien tuc tren RViz)
+        self.gripper_joint_pub = self.node.create_publisher(JointState, "/joint_states", 10)
+        self.current_gripper_pos = 0.024
+        self.target_gripper_pos = 0.024
+        # Timer duy tri va noi suy chuyen dong co bop 20Hz deu dan
+        self.gripper_state_timer = self.node.create_timer(0.05, self._publish_gripper_state)
 
         # Joint States Subscription & Tracking
         self.current_joint_positions = {}
@@ -143,22 +153,22 @@ class RobotSkills:
         threading.Thread(target=_call, daemon=True).start()
 
     def _send_gripper_joint_cmd(self, position_left: float, position_right: float):
-        """Publish joint position command de dieu khien ngon tay gripper vat ly."""
-        def _call():
-            try:
-                cmd_left = ["ign", "topic", "-t", "/gripper/left_cmd", "-m", "ignition.msgs.Double", "-p", f"data: {position_left:.4f}"]
-                cmd_right = ["ign", "topic", "-t", "/gripper/right_cmd", "-m", "ignition.msgs.Double", "-p", f"data: {position_right:.4f}"]
-                subprocess.run(cmd_left, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=0.6)
-                subprocess.run(cmd_right, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=0.6)
-            except Exception:
-                pass
-        threading.Thread(target=_call, daemon=True).start()
+        """Publish joint position command de dieu khien ngon tay gripper vat ly qua ros_gz_bridge."""
+        try:
+            msg_l = Float64(data=float(position_left))
+            msg_r = Float64(data=float(position_right))
+            self.gripper_left_pub.publish(msg_l)
+            self.gripper_right_pub.publish(msg_r)
+        except Exception:
+            pass
 
     def _init_gripper_hardware(self):
-        """Mo rong ngon tay kep Robotiq 2F-85 san sang lam viec."""
+        """Mo rong ngon tay kep Industrial Gripper san sang lam viec."""
         def _async_init():
             time.sleep(1.0)
-            self._send_gripper_joint_cmd(0.022, -0.022)
+            self.target_gripper_pos = 0.024
+            self.current_gripper_pos = 0.024
+            self._send_gripper_joint_cmd(0.024, -0.024)
         threading.Thread(target=_async_init, daemon=True).start()
 
     def _camera_state_cb(self, msg: String):
@@ -244,25 +254,54 @@ class RobotSkills:
         success = self._move_to_joint_target(self.home_joints)
         return "SUCCESS" if success else "PLANNING_FAILED"
 
+    def _publish_gripper_state(self):
+        """Noi suy vi tri ngon tay va publish lien tuc tren RViz (/joint_states) va Gazebo."""
+        step = 0.0025
+        if abs(self.current_gripper_pos - self.target_gripper_pos) > 1e-4:
+            if self.current_gripper_pos < self.target_gripper_pos:
+                self.current_gripper_pos = min(self.target_gripper_pos, self.current_gripper_pos + step)
+            else:
+                self.current_gripper_pos = max(self.target_gripper_pos, self.current_gripper_pos - step)
+            self._send_gripper_joint_cmd(self.current_gripper_pos, -self.current_gripper_pos)
+
+        try:
+            js = JointState()
+            js.header.stamp = self.node.get_clock().now().to_msg()
+            js.name = ["gripper_left_joint", "gripper_right_joint"]
+            js.position = [float(self.current_gripper_pos), float(-self.current_gripper_pos)]
+            self.gripper_joint_pub.publish(js)
+        except Exception:
+            pass
+
+    def _animate_gripper(self, target_pos: float, steps: int = 10, duration: float = 0.35):
+        """Cap nhat target vi tri ngon tay va cho chuyen dong co bop hoan tat."""
+        self.target_gripper_pos = target_pos
+        step_dt = duration / max(1, steps)
+        for _ in range(steps):
+            time.sleep(step_dt)
+        self.current_gripper_pos = target_pos
+        self._send_gripper_joint_cmd(target_pos, -target_pos)
+
     def open_gripper(self) -> str:
-        """Mo ngon tay kep Robotiq 2F-85 de nha vat theo vat ly thuc te."""
-        self.node.get_logger().info("Thuc thi Skill: open_gripper()")
-        self._send_gripper_joint_cmd(0.022, -0.022)
+        """Mo ngon tay kep Industrial Gripper de nha vat theo vat ly thuc te."""
+        self.node.get_logger().info("Thuc thi Skill: open_gripper() - Mo rong ngon tay kep")
+        self._animate_gripper(0.024, steps=10, duration=0.35)
         if self.holding_object:
             self._detach_object_from_robot(self.holding_object)
             self.holding_object = None
-        time.sleep(0.3)
+        time.sleep(0.15)
         return "SUCCESS"
 
     def close_gripper(self, object_name: str = None) -> str:
-        """Khep ngon tay kep Robotiq 2F-85 ep luc ma sat vao 2 mat vat the."""
-        self.node.get_logger().info(f"Thuc thi Skill: close_gripper(object={object_name})")
-        # Lenh ep ngon tay khao sat qua be rong khoi cube 4cm de duy tri luc ep lien tuc
-        self._send_gripper_joint_cmd(-0.003, 0.003)
+        """Co bop ngon tay kep Industrial Gripper ep chat vat the bang luc ma sat."""
+        self.node.get_logger().info(f"Thuc thi Skill: close_gripper(object={object_name}) - Co bop ngon kep")
+        # 0.005m tao luc ep ma sat om chat khoi hop 4cm (hoac 0.000m neu kep khong)
+        target = 0.005 if object_name else 0.000
+        self._animate_gripper(target, steps=12, duration=0.40)
         if object_name:
             self._attach_object_to_robot(object_name)
             self.holding_object = object_name
-        time.sleep(0.4)
+        time.sleep(0.20)
         return "SUCCESS"
 
     def move_above(self, target_name: str) -> str:
@@ -342,11 +381,15 @@ class RobotSkills:
             if not self._move_to_pose_target(grasp_pose):
                 return "PLANNING_FAILED"
 
-        # 4. Dong kep (Dinh kem vat the & vat ly gripper kien tao)
+        # Tam dung on dinh de tranh va cham nay vat
+        time.sleep(0.25)
+
+        # 4. Dong kep co bop kẹp chặt vật thể bằng lực ma sát
         self.close_gripper(object_name)
+        time.sleep(0.3)
         self._publish_dynamic_cube_state()
 
-        # 5. Nhac vat len cao (Cartesian thang dung)
+        # 5. Nhac vat len cao (Cartesian thang dung nhe nhang)
         if not self._move_cartesian([approach_pose]):
             self._move_to_pose_target(approach_pose)
 
@@ -411,8 +454,12 @@ class RobotSkills:
             if not self._move_to_pose_target(place_pose):
                 return "PLANNING_FAILED"
 
-        # 3. Mo kep (Nha vat & de vat on dinh theo vat ly Gazebo)
+        # Tam dung on dinh truoc khi nha vat
+        time.sleep(0.25)
+
+        # 3. Mo kep de nha vat nhe nhang theo trong luc
         self.open_gripper()
+        time.sleep(0.2)
         final_pos = [target_x, target_y, 0.02]
         self.object_positions[object_name] = final_pos
         self.zone_occupants[zone_name] = object_name
@@ -702,8 +749,8 @@ class RobotSkills:
         goal_msg.request.group_name = "ur_manipulator"
         goal_msg.request.num_planning_attempts = 10
         goal_msg.request.allowed_planning_time = 5.0
-        goal_msg.request.max_velocity_scaling_factor = 0.8
-        goal_msg.request.max_acceleration_scaling_factor = 0.7
+        goal_msg.request.max_velocity_scaling_factor = 0.35
+        goal_msg.request.max_acceleration_scaling_factor = 0.25
         goal_msg.planning_options.plan_only = False
         goal_msg.planning_options.planning_scene_diff.is_diff = True
         goal_msg.request.start_state.is_diff = True
@@ -744,8 +791,8 @@ class RobotSkills:
         goal_msg.request.group_name = "ur_manipulator"
         goal_msg.request.num_planning_attempts = 15
         goal_msg.request.allowed_planning_time = 5.0
-        goal_msg.request.max_velocity_scaling_factor = 0.8
-        goal_msg.request.max_acceleration_scaling_factor = 0.7
+        goal_msg.request.max_velocity_scaling_factor = 0.35
+        goal_msg.request.max_acceleration_scaling_factor = 0.25
         goal_msg.planning_options.plan_only = False
         goal_msg.planning_options.planning_scene_diff.is_diff = True
         goal_msg.request.start_state.is_diff = True
@@ -754,11 +801,11 @@ class RobotSkills:
         pose_stamped = PoseStamped()
         pose_stamped.header.frame_id = "base_link"
         pose_stamped.header.stamp = self.node.get_clock().now().to_msg()
-        # Offset tool0 do co gan gripper (gripper dai ~8cm)
+        # Offset tool0 do co gan gripper (gripper dai ~8.2cm tu tool0 den tam dem silicone)
         pose_stamped.pose = Pose()
         pose_stamped.pose.position.x = target_pose.position.x
         pose_stamped.pose.position.y = target_pose.position.y
-        pose_stamped.pose.position.z = target_pose.position.z + 0.08
+        pose_stamped.pose.position.z = target_pose.position.z + 0.082
         pose_stamped.pose.orientation = target_pose.orientation
 
         # Rang buoc vi tri
@@ -836,7 +883,7 @@ class RobotSkills:
             p = Pose()
             p.position.x = wp.position.x
             p.position.y = wp.position.y
-            p.position.z = wp.position.z + 0.08
+            p.position.z = wp.position.z + 0.082
             p.orientation = wp.orientation
             offset_wps.append(p)
 
@@ -913,7 +960,7 @@ class RobotSkills:
         attached_obj.link_name = "tool0"
         attached_obj.object.id = object_name
         attached_obj.object.operation = CollisionObject.ADD
-        attached_obj.touch_links = ["tool0", "gripper_base", "gripper_left_finger", "gripper_right_finger"]
+        attached_obj.touch_links = ["tool0", "gripper_flange_link", "gripper_base_link", "gripper_left_finger", "gripper_right_finger"]
 
         ps.robot_state.attached_collision_objects.append(attached_obj)
 

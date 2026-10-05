@@ -121,6 +121,8 @@ class CameraPerceptionNode(Node):
 
         # Publisher scene state
         self.state_pub = self.create_publisher(String, "/scene/camera_state", 10)
+        # Publisher anh duoc chu thich (bounding boxes, zones) de xem truc tiep tren RViz
+        self.annotated_image_pub = self.create_publisher(Image, "/camera/image_annotated", 10)
 
         # Service perceive_scene -> tra ve JSON scene state
         self.perceive_srv = self.create_service(
@@ -187,6 +189,52 @@ class CameraPerceptionNode(Node):
             "camera_active": True,
         }
         self._publish_state()
+
+        # Render Annotated Image phuc vu hien thi truc quan tren RViz Camera display
+        try:
+            annotated_img = cv_image.copy()
+            h, w = annotated_img.shape[:2]
+
+            # 1. Ve cac Zone muc tieu va trang thai (Xanh = trong, Do = bi chiem)
+            target_zones = ["zone_a", "zone_b", "zone_c", "zone_temp"]
+            for z_name in target_zones:
+                if z_name in ZONE_DEFINITIONS:
+                    center_xy = ZONE_DEFINITIONS[z_name]["center"]
+                    p_uv = self._world_to_pixel(center_xy[0], center_xy[1], w, h)
+                    if p_uv:
+                        occupant = zone_occupants.get(z_name)
+                        is_occupied = occupant is not None
+                        color = (30, 30, 220) if is_occupied else (30, 220, 30)  # BGR
+                        cv2.circle(annotated_img, p_uv, 34, color, 2)
+                        status_str = f"[{occupant}]" if is_occupied else "[FREE]"
+                        cv2.putText(annotated_img, f"{z_name}: {status_str}",
+                                    (p_uv[0] - 45, p_uv[1] - 40),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.40, color, 1)
+
+            # 2. Ve Bounding box va toa do cua tung vat the duoc nhan dien
+            for obj_name, info in detected.items():
+                u, v = info["pixel_u"], info["pixel_v"]
+                # Ve hop bao vat the
+                cv2.rectangle(annotated_img, (u - 16, v - 16), (u + 16, v + 16), (255, 255, 255), 2)
+                cv2.circle(annotated_img, (u, v), 3, (0, 0, 255), -1)
+                # Label ten vat the va toa do thuc te
+                label = f"{obj_name} ({info['x']:.2f}, {info['y']:.2f})"
+                cv2.putText(annotated_img, label, (u - 35, v + 30),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.38, (255, 255, 255), 1)
+
+            # 3. Thanh trang thai tren cung (Top status banner)
+            cv2.rectangle(annotated_img, (0, 0), (w, 24), (25, 25, 25), -1)
+            summary_txt = f"UR3 OVERHEAD VISION: {len(detected)}/5 Cubes Detected | Zones A/B/C Monitored"
+            cv2.putText(annotated_img, summary_txt, (10, 16),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.42, (0, 220, 255), 1)
+
+            # Publish anh da chu thich len topic ROS 2
+            annotated_msg = self.bridge.cv2_to_imgmsg(annotated_img, "bgr8")
+            annotated_msg.header.stamp = self.latest_image.header.stamp
+            annotated_msg.header.frame_id = "overhead_camera"
+            self.annotated_image_pub.publish(annotated_msg)
+        except Exception as err:
+            self.get_logger().warn(f"Loi publish annotated image: {err}")
 
     def _detect_object_by_color(self, bgr_image, obj_name: str,
                                  color_ranges: list):
@@ -268,6 +316,34 @@ class CameraPerceptionNode(Node):
             return None
 
         return (world_x, world_y)
+
+    def _world_to_pixel(self, world_x: float, world_y: float, img_w: int, img_h: int):
+        """
+        Chieu nguoc toa do the gioi (world_x, world_y) -> toa do pixel (u, v)
+        phuc vu ve cac marker va zone len hinh anh camera.
+        """
+        if self.camera_info is not None:
+            fx = self.camera_info.k[0]
+            fy = self.camera_info.k[4]
+            cx = self.camera_info.k[2]
+            cy = self.camera_info.k[5]
+        else:
+            fov_h = 1.15
+            fx = (img_w / 2.0) / math.tan(fov_h / 2.0)
+            fy = fx
+            cx = img_w / 2.0
+            cy = img_h / 2.0
+
+        depth = CAMERA_Z
+        y_cam = -(world_x - CAMERA_X)
+        x_cam = -(world_y - CAMERA_Y)
+
+        u = int(cx + (x_cam / depth) * fx)
+        v = int(cy + (y_cam / depth) * fy)
+
+        if 0 <= u < img_w and 0 <= v < img_h:
+            return (u, v)
+        return None
 
     def _classify_location(self, x: float, y: float) -> str:
         """

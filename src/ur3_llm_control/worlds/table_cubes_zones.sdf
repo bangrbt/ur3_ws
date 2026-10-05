@@ -974,23 +974,44 @@
 
     <!-- ======================================================== -->
     <!-- CAMERA THU THAP DU LIEU THI GIAC (RGB OVERHEAD CAMERA)   -->
+    <!-- Co cot dung va gia treo cong nghiep kien co gan tren ban -->
     <!-- ======================================================== -->
     <model name="overhead_camera">
       <static>true</static>
-      <pose>0.30 0.0 0.95 0 1.5707963 0</pose>
-      <link name="camera_link">
-        <visual name="visual">
-          <geometry>
-            <box>
-              <size>0.06 0.06 0.03</size>
-            </box>
-          </geometry>
-          <material>
-            <ambient>0.2 0.2 0.2 1.0</ambient>
-            <diffuse>0.2 0.2 0.2 1.0</diffuse>
-          </material>
+      <pose>0 0 0 0 0 0</pose>
+      <link name="camera_stand_link">
+        <!-- 1. Chan de gan tren canh ban -->
+        <visual name="stand_base">
+          <pose>-0.04 0.40 0.01 0 0 0</pose>
+          <geometry><box><size>0.08 0.08 0.02</size></box></geometry>
+          <material><ambient>0.2 0.22 0.25 1</ambient><diffuse>0.2 0.22 0.25 1</diffuse></material>
+        </visual>
+        <!-- 2. Cot thep dung vuon len cao 0.95m -->
+        <visual name="stand_column">
+          <pose>-0.04 0.40 0.48 0 0 0</pose>
+          <geometry><cylinder><radius>0.018</radius><length>0.96</length></cylinder></geometry>
+          <material><ambient>0.3 0.32 0.35 1</ambient><diffuse>0.3 0.32 0.35 1</diffuse></material>
+        </visual>
+        <!-- 3. Giang ngang noi tu cot toi vi tri camera -->
+        <visual name="stand_arm">
+          <pose>0.13 0.20 0.96 0 0 -0.87</pose>
+          <geometry><box><size>0.54 0.03 0.03</size></box></geometry>
+          <material><ambient>0.25 0.27 0.30 1</ambient><diffuse>0.25 0.27 0.30 1</diffuse></material>
+        </visual>
+        <!-- 4. Dau kep giu camera tai X=0.30, Y=0.0, Z=0.95m -->
+        <visual name="camera_body">
+          <pose>0.30 0.0 0.95 0 0 0</pose>
+          <geometry><box><size>0.08 0.08 0.04</size></box></geometry>
+          <material><ambient>0.12 0.12 0.14 1</ambient><diffuse>0.12 0.12 0.14 1</diffuse></material>
+        </visual>
+        <!-- 5. Ong kinh camera chieu thang xuong mat ban -->
+        <visual name="camera_lens">
+          <pose>0.30 0.0 0.925 0 0 0</pose>
+          <geometry><cylinder><radius>0.022</radius><length>0.015</length></cylinder></geometry>
+          <material><ambient>0.05 0.05 0.05 1</ambient><diffuse>0.05 0.05 0.05 1</diffuse></material>
         </visual>
         <sensor name="overhead_camera" type="camera">
+          <pose>0.30 0.0 0.92 0 1.5707963 0</pose>
           <camera>
             <horizontal_fov>1.15</horizontal_fov>
             <image>

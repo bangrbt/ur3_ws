@@ -7,139 +7,188 @@
   <xacro:include filename="$(find ur_description)/urdf/ur.urdf.xacro"/>
 
   <!-- ======================================================================= -->
-  <!-- INDUSTRIAL ROBOTIQ 2F-85 PARALLEL GRIPPER GẮN TRỰC TIẾP VÀO TOOL0      -->
+  <!-- INDUSTRIAL PRECISION PARALLEL GRIPPER (TAY GẮP CÔNG NGHIỆP CAO CẤP)     -->
+  <!-- Thiết kế kim loại phay xước đen, đệm silicone cam bám dính ma sát cực cao -->
   <!-- ======================================================================= -->
 
-  <!-- 1. Adapter kim loại nối cổ tay UR3 sang Robotiq Flange -->
-  <link name="ur_to_robotiq_link">
+  <!-- 1. Đế chuyển tiếp mặt bích (Gripper Mounting Flange) -->
+  <link name="gripper_flange_link">
     <visual>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <origin xyz="0 0 0.005" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ur3_llm_control/meshes/robotiq_2f_85/visual/ur_to_robotiq_adapter.dae"/>
+        <cylinder radius="0.038" length="0.010"/>
       </geometry>
+      <material name="flange_silver">
+        <color rgba="0.75 0.78 0.82 1.0"/>
+      </material>
     </visual>
     <collision>
-      <origin xyz="0 0 0.0055" rpy="0 0 0"/>
+      <origin xyz="0 0 0.005" rpy="0 0 0"/>
       <geometry>
-        <cylinder radius="0.038" length="0.011"/>
+        <cylinder radius="0.038" length="0.010"/>
       </geometry>
     </collision>
     <inertial>
-      <mass value="0.1"/>
-      <origin xyz="0 0 0.0055" rpy="0 0 0"/>
+      <mass value="0.12"/>
+      <origin xyz="0 0 0.005" rpy="0 0 0"/>
       <inertia ixx="0.0001" ixy="0" ixz="0" iyy="0.0001" iyz="0" izz="0.0001"/>
     </inertial>
   </link>
 
-  <joint name="ur_to_robotiq_joint" type="fixed">
+  <joint name="gripper_flange_joint" type="fixed">
     <parent link="tool0"/>
-    <child link="ur_to_robotiq_link"/>
+    <child link="gripper_flange_link"/>
     <origin xyz="0 0 0" rpy="0 0 0"/>
   </joint>
 
-  <!-- 2. Thân chính Robotiq 2F-85 Gripper Base (Màu đen kim loại cao cấp) -->
-  <link name="robotiq_base_link">
+  <!-- 2. Thân chính Gripper (Body Housing - Nhôm Anode Đen phay xước) -->
+  <link name="gripper_base_link">
     <visual>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <!-- Khối thân chính dạng vát công nghiệp -->
+      <origin xyz="0 0 0.025" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ur3_llm_control/meshes/robotiq_2f_85/visual/robotiq_base.dae"/>
+        <box size="0.056 0.092 0.040"/>
       </geometry>
+      <material name="housing_black">
+        <color rgba="0.12 0.13 0.15 1.0"/>
+      </material>
+    </visual>
+    <!-- Rãnh trượt dẫn hướng ngón tay mạ chrome -->
+    <visual>
+      <origin xyz="0 0 0.043" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.032 0.088 0.006"/>
+      </geometry>
+      <material name="rail_chrome">
+        <color rgba="0.88 0.90 0.94 1.0"/>
+      </material>
+    </visual>
+    <!-- Logo viền cam công nghiệp -->
+    <visual>
+      <origin xyz="0.029 0 0.025" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.002 0.040 0.012"/>
+      </geometry>
+      <material name="industrial_orange">
+        <color rgba="1.0 0.45 0.05 1.0"/>
+      </material>
     </visual>
     <collision>
-      <origin xyz="0 0 0.04" rpy="0 0 0"/>
+      <origin xyz="0 0 0.025" rpy="0 0 0"/>
       <geometry>
-        <box size="0.075 0.075 0.08"/>
+        <box size="0.056 0.092 0.040"/>
       </geometry>
     </collision>
     <inertial>
-      <mass value="0.6"/>
-      <origin xyz="0 0 0.035" rpy="0 0 0"/>
-      <inertia ixx="0.0005" ixy="0" ixz="0" iyy="0.0005" iyz="0" izz="0.0004"/>
+      <mass value="0.45"/>
+      <origin xyz="0 0 0.025" rpy="0 0 0"/>
+      <inertia ixx="0.0004" ixy="0" ixz="0" iyy="0.0004" iyz="0" izz="0.0003"/>
     </inertial>
   </link>
 
-  <joint name="robotiq_base_joint" type="fixed">
-    <parent link="ur_to_robotiq_link"/>
-    <child link="robotiq_base_link"/>
-    <origin xyz="0 0 0.011" rpy="0 0 ${pi/2}"/>
+  <joint name="gripper_base_joint" type="fixed">
+    <parent link="gripper_flange_link"/>
+    <child link="gripper_base_link"/>
+    <origin xyz="0 0 0.010" rpy="0 0 0"/>
   </joint>
 
-  <!-- 3. Ngón kẹp trái (Robotiq Left Finger & Tip - Active Prismatic Joint) -->
+  <!-- 3. Ngón kẹp bên trái (Left Gripper Finger - Active Prismatic Joint) -->
   <link name="gripper_left_finger">
+    <!-- Càng kẹp hợp kim nhôm đen -->
     <visual>
-      <!-- Finger Link & Finger Tip Mesh Robotiq -->
-      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <origin xyz="0 0 0.022" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ur3_llm_control/meshes/robotiq_2f_85/visual/left_finger_tip.dae"/>
+        <box size="0.022 0.012 0.044"/>
       </geometry>
+      <material name="finger_metal">
+        <color rgba="0.22 0.24 0.28 1.0"/>
+      </material>
     </visual>
-    <!-- Đệm kẹp cao su tiếp xúc ma sát cao (Contact Finger Pad) -->
-    <collision>
-      <origin xyz="0.0 -0.006 0.018" rpy="0 0 0"/>
+    <!-- Đệm kẹp Silicone màu cam có độ bám ma sát cao -->
+    <visual>
+      <origin xyz="0 -0.005 0.022" rpy="0 0 0"/>
       <geometry>
-        <box size="0.024 0.008 0.038"/>
+        <box size="0.020 0.003 0.038"/>
+      </geometry>
+      <material name="industrial_orange"/>
+    </visual>
+    <!-- Mặt tiếp xúc va chạm ma sát cao -->
+    <collision>
+      <origin xyz="0 -0.005 0.022" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.022 0.006 0.040"/>
       </geometry>
     </collision>
     <inertial>
-      <mass value="0.05"/>
-      <origin xyz="0 0 0.015" rpy="0 0 0"/>
-      <inertia ixx="0.00002" ixy="0" ixz="0" iyy="0.00002" iyz="0" izz="0.00001"/>
+      <mass value="0.06"/>
+      <origin xyz="0 0 0.020" rpy="0 0 0"/>
+      <inertia ixx="0.00003" ixy="0" ixz="0" iyy="0.00003" iyz="0" izz="0.00001"/>
     </inertial>
   </link>
 
-  <!-- Khớp ngón trái: trượt theo trục Y từ 0.016m (kẹp chặt khối 4cm) đến 0.045m (mở rộng 9cm) -->
+  <!-- Khớp trượt trái: trượt theo trục Y (0.018m: kẹp chặt khối 4cm, 0.042m: mở rộng 8.4cm) -->
   <joint name="gripper_left_joint" type="prismatic">
-    <parent link="robotiq_base_link"/>
+    <parent link="gripper_base_link"/>
     <child link="gripper_left_finger"/>
-    <origin xyz="0 0.02 0.065" rpy="0 0 0"/>
+    <origin xyz="0 0.020 0.046" rpy="0 0 0"/>
     <axis xyz="0 1 0"/>
-    <limit lower="-0.004" upper="0.025" effort="300.0" velocity="0.3"/>
+    <limit lower="-0.005" upper="0.028" effort="250.0" velocity="0.3"/>
   </joint>
 
-  <!-- 4. Ngón kẹp phải (Robotiq Right Finger & Tip - Active Prismatic Joint) -->
+  <!-- 4. Ngón kẹp bên phải (Right Gripper Finger - Active Prismatic Joint) -->
   <link name="gripper_right_finger">
+    <!-- Càng kẹp hợp kim nhôm đen -->
     <visual>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <origin xyz="0 0 0.022" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ur3_llm_control/meshes/robotiq_2f_85/visual/right_finger_tip.dae"/>
+        <box size="0.022 0.012 0.044"/>
       </geometry>
+      <material name="finger_metal">
+        <color rgba="0.22 0.24 0.28 1.0"/>
+      </material>
     </visual>
-    <!-- Đệm kẹp cao su tiếp xúc ma sát cao (Contact Finger Pad) -->
-    <collision>
-      <origin xyz="0.0 0.006 0.018" rpy="0 0 0"/>
+    <!-- Đệm kẹp Silicone màu cam có độ bám ma sát cao -->
+    <visual>
+      <origin xyz="0 0.005 0.022" rpy="0 0 0"/>
       <geometry>
-        <box size="0.024 0.008 0.038"/>
+        <box size="0.020 0.003 0.038"/>
+      </geometry>
+      <material name="industrial_orange"/>
+    </visual>
+    <!-- Mặt tiếp xúc va chạm ma sát cao -->
+    <collision>
+      <origin xyz="0 0.005 0.022" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.022 0.006 0.040"/>
       </geometry>
     </collision>
     <inertial>
-      <mass value="0.05"/>
-      <origin xyz="0 0 0.015" rpy="0 0 0"/>
-      <inertia ixx="0.00002" ixy="0" ixz="0" iyy="0.00002" iyz="0" izz="0.00001"/>
+      <mass value="0.06"/>
+      <origin xyz="0 0 0.020" rpy="0 0 0"/>
+      <inertia ixx="0.00003" ixy="0" ixz="0" iyy="0.00003" iyz="0" izz="0.00001"/>
     </inertial>
   </link>
 
-  <!-- Khớp ngón phải: trượt đối xứng theo trục Y -->
+  <!-- Khớp trượt phải: trượt đối xứng theo trục Y -->
   <joint name="gripper_right_joint" type="prismatic">
-    <parent link="robotiq_base_link"/>
+    <parent link="gripper_base_link"/>
     <child link="gripper_right_finger"/>
-    <origin xyz="0 -0.02 0.065" rpy="0 0 0"/>
+    <origin xyz="0 -0.020 0.046" rpy="0 0 0"/>
     <axis xyz="0 1 0"/>
-    <limit lower="-0.025" upper="0.004" effort="300.0" velocity="0.3"/>
+    <limit lower="-0.028" upper="0.005" effort="250.0" velocity="0.3"/>
   </joint>
 
   <!-- 5. Điểm kẹp trung tâm (Tool Center Point - TCP) -->
   <link name="gripper_tcp"/>
   <joint name="gripper_tcp_joint" type="fixed">
-    <parent link="robotiq_base_link"/>
+    <parent link="gripper_base_link"/>
     <child link="gripper_tcp"/>
-    <origin xyz="0 0 0.085" rpy="0 0 0"/>
+    <origin xyz="0 0 0.068" rpy="0 0 0"/>
   </joint>
 
   <!-- ======================================================================= -->
-  <!-- GAZEBO PHYSICS & CONTACT PROPERTIES: PURE FRICTION CONTACT GRASP        -->
+  <!-- GAZEBO SURFACE FRICTION: MA SÁT TIẾP XÚC CỰC LỚN ĐỂ GẮP VẬT THẬT         -->
   <!-- ======================================================================= -->
-
-  <!-- Độ nhám & ma sát cực cao cho đệm ngón tay trái -->
   <gazebo reference="gripper_left_finger">
     <collision>
       <surface>
@@ -156,14 +205,12 @@
             <kp>1000000.0</kp>
             <kd>100.0</kd>
             <min_depth>0.001</min_depth>
-            <max_vel>0.01</max_vel>
           </ode>
         </contact>
       </surface>
     </collision>
   </gazebo>
 
-  <!-- Độ nhám & ma sát cực cao cho đệm ngón tay phải -->
   <gazebo reference="gripper_right_finger">
     <collision>
       <surface>
@@ -180,7 +227,6 @@
             <kp>1000000.0</kp>
             <kd>100.0</kd>
             <min_depth>0.001</min_depth>
-            <max_vel>0.01</max_vel>
           </ode>
         </contact>
       </surface>
@@ -188,7 +234,7 @@
   </gazebo>
 
   <!-- ======================================================================= -->
-  <!-- GAZEBO JOINT POSITION CONTROLLERS: ĐIỀU KHIỂN CỬ ĐỘNG 2 NGÓN TAY THỰC   -->
+  <!-- GAZEBO JOINT POSITION CONTROLLER: ĐIỀU KHIỂN ĐỘ MỞ/ĐÓNG NGÓN TAY        -->
   <!-- ======================================================================= -->
   <gazebo>
     <plugin

@@ -206,14 +206,16 @@ def generate_launch_description():
         parameters=[{"use_sim_time": True}],
     )
 
-    # 5.1 Camera Bridge: Chuyen hinh anh tu Ignition Gazebo sang ROS 2 sensor_msgs/Image
+    # 5.1 Camera & Gripper Bridge: Chuyen hinh anh va topic dieu khien ngon tay gripper
     camera_bridge_node = Node(
         package="ros_gz_bridge",
         executable="parameter_bridge",
-        name="camera_bridge",
+        name="camera_gripper_bridge",
         arguments=[
             "/camera/image_raw@sensor_msgs/msg/Image[ignition.msgs.Image",
             "/camera/camera_info@sensor_msgs/msg/CameraInfo[ignition.msgs.CameraInfo",
+            "/gripper/left_cmd@std_msgs/msg/Float64]ignition.msgs.Double",
+            "/gripper/right_cmd@std_msgs/msg/Float64]ignition.msgs.Double",
         ],
         output="screen",
     )

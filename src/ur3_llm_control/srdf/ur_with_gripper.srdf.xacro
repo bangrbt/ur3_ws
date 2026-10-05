@@ -10,26 +10,26 @@
   <xacro:include filename="$(find ur_moveit_config)/srdf/ur_macro.srdf.xacro"/>
   <xacro:ur_srdf name="$(arg name)" prefix="$(arg prefix)"/>
 
-  <!-- Disable collisions for Robotiq 2F-85 Gripper links -->
-  <disable_collisions link1="$(arg prefix)tool0" link2="$(arg prefix)ur_to_robotiq_link" reason="Adjacent" />
-  <disable_collisions link1="$(arg prefix)wrist_3_link" link2="$(arg prefix)ur_to_robotiq_link" reason="Adjacent" />
-  <disable_collisions link1="$(arg prefix)flange" link2="$(arg prefix)ur_to_robotiq_link" reason="Adjacent" />
-  <disable_collisions link1="$(arg prefix)ft_frame" link2="$(arg prefix)ur_to_robotiq_link" reason="Adjacent" />
+  <!-- Disable collisions for Industrial Parallel Gripper links -->
+  <disable_collisions link1="$(arg prefix)tool0" link2="$(arg prefix)gripper_flange_link" reason="Adjacent" />
+  <disable_collisions link1="$(arg prefix)wrist_3_link" link2="$(arg prefix)gripper_flange_link" reason="Adjacent" />
+  <disable_collisions link1="$(arg prefix)flange" link2="$(arg prefix)gripper_flange_link" reason="Adjacent" />
+  <disable_collisions link1="$(arg prefix)ft_frame" link2="$(arg prefix)gripper_flange_link" reason="Adjacent" />
 
-  <disable_collisions link1="$(arg prefix)ur_to_robotiq_link" link2="$(arg prefix)robotiq_base_link" reason="Adjacent" />
-  <disable_collisions link1="$(arg prefix)tool0" link2="$(arg prefix)robotiq_base_link" reason="Never" />
-  <disable_collisions link1="$(arg prefix)wrist_3_link" link2="$(arg prefix)robotiq_base_link" reason="Never" />
-  <disable_collisions link1="$(arg prefix)flange" link2="$(arg prefix)robotiq_base_link" reason="Never" />
+  <disable_collisions link1="$(arg prefix)gripper_flange_link" link2="$(arg prefix)gripper_base_link" reason="Adjacent" />
+  <disable_collisions link1="$(arg prefix)tool0" link2="$(arg prefix)gripper_base_link" reason="Never" />
+  <disable_collisions link1="$(arg prefix)wrist_3_link" link2="$(arg prefix)gripper_base_link" reason="Never" />
+  <disable_collisions link1="$(arg prefix)flange" link2="$(arg prefix)gripper_base_link" reason="Never" />
 
-  <disable_collisions link1="$(arg prefix)robotiq_base_link" link2="$(arg prefix)gripper_left_finger" reason="Adjacent" />
-  <disable_collisions link1="$(arg prefix)robotiq_base_link" link2="$(arg prefix)gripper_right_finger" reason="Adjacent" />
+  <disable_collisions link1="$(arg prefix)gripper_base_link" link2="$(arg prefix)gripper_left_finger" reason="Adjacent" />
+  <disable_collisions link1="$(arg prefix)gripper_base_link" link2="$(arg prefix)gripper_right_finger" reason="Adjacent" />
   <disable_collisions link1="$(arg prefix)gripper_left_finger" link2="$(arg prefix)gripper_right_finger" reason="Never" />
 
   <disable_collisions link1="$(arg prefix)tool0" link2="$(arg prefix)gripper_left_finger" reason="Never" />
   <disable_collisions link1="$(arg prefix)tool0" link2="$(arg prefix)gripper_right_finger" reason="Never" />
   <disable_collisions link1="$(arg prefix)wrist_3_link" link2="$(arg prefix)gripper_left_finger" reason="Never" />
   <disable_collisions link1="$(arg prefix)wrist_3_link" link2="$(arg prefix)gripper_right_finger" reason="Never" />
-  <disable_collisions link1="$(arg prefix)ur_to_robotiq_link" link2="$(arg prefix)gripper_left_finger" reason="Never" />
-  <disable_collisions link1="$(arg prefix)ur_to_robotiq_link" link2="$(arg prefix)gripper_right_finger" reason="Never" />
+  <disable_collisions link1="$(arg prefix)gripper_flange_link" link2="$(arg prefix)gripper_left_finger" reason="Never" />
+  <disable_collisions link1="$(arg prefix)gripper_flange_link" link2="$(arg prefix)gripper_right_finger" reason="Never" />
 
 </robot>
