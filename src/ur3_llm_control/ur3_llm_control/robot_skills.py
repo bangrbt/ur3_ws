@@ -155,13 +155,10 @@ class RobotSkills:
         threading.Thread(target=_call, daemon=True).start()
 
     def _init_gripper_hardware(self):
-        """Mo gripper va detach toan bo 5 khoi ban dau de khong bi dinh vao tool0."""
+        """Mo rong ngon tay kep Robotiq 2F-85 san sang lam viec."""
         def _async_init():
             time.sleep(1.0)
-            self._send_gripper_joint_cmd(0.02, -0.02)
-            for color in ["red", "yellow", "blue", "green", "purple"]:
-                self._send_ignition_topic(f"/gripper/detach_{color}")
-                time.sleep(0.05)
+            self._send_gripper_joint_cmd(0.022, -0.022)
         threading.Thread(target=_async_init, daemon=True).start()
 
     def _camera_state_cb(self, msg: String):
@@ -248,27 +245,24 @@ class RobotSkills:
         return "SUCCESS" if success else "PLANNING_FAILED"
 
     def open_gripper(self) -> str:
-        """Mo ngon tay kep vat ly va nha DetachableJoint khoi robot."""
+        """Mo ngon tay kep Robotiq 2F-85 de nha vat theo vat ly thuc te."""
         self.node.get_logger().info("Thuc thi Skill: open_gripper()")
-        self._send_gripper_joint_cmd(0.02, -0.02)
+        self._send_gripper_joint_cmd(0.022, -0.022)
         if self.holding_object:
-            color = self.holding_object.replace("_cube", "")
-            self._send_ignition_topic(f"/gripper/detach_{color}")
             self._detach_object_from_robot(self.holding_object)
             self.holding_object = None
-        time.sleep(0.2)
+        time.sleep(0.3)
         return "SUCCESS"
 
     def close_gripper(self, object_name: str = None) -> str:
-        """Dong ngon tay kep vat ly va kich hoat DetachableJoint giu chat vat."""
+        """Khep ngon tay kep Robotiq 2F-85 ep luc ma sat vao 2 mat vat the."""
         self.node.get_logger().info(f"Thuc thi Skill: close_gripper(object={object_name})")
-        self._send_gripper_joint_cmd(-0.005, 0.005)
+        # Lenh ep ngon tay khao sat qua be rong khoi cube 4cm de duy tri luc ep lien tuc
+        self._send_gripper_joint_cmd(-0.003, 0.003)
         if object_name:
-            color = object_name.replace("_cube", "")
-            self._send_ignition_topic(f"/gripper/attach_{color}")
             self._attach_object_to_robot(object_name)
             self.holding_object = object_name
-        time.sleep(0.2)
+        time.sleep(0.4)
         return "SUCCESS"
 
     def move_above(self, target_name: str) -> str:

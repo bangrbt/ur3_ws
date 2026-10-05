@@ -19,6 +19,8 @@ setup(
         (os.path.join("share", package_name, "srdf"), glob("srdf/*")),
         (os.path.join("share", package_name, "worlds"), glob("worlds/*")),
         (os.path.join("share", package_name, "rviz"), glob("rviz/*")),
+        (os.path.join("share", package_name, "meshes", "robotiq_2f_85", "visual"), glob("meshes/robotiq_2f_85/visual/*")),
+        (os.path.join("share", package_name, "meshes", "robotiq_2f_85", "collision"), glob("meshes/robotiq_2f_85/collision/*")),
     ],
     install_requires=["setuptools", "pyyaml", "requests"],
     zip_safe=True,

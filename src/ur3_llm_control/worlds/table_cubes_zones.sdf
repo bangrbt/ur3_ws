@@ -753,10 +753,17 @@
           <surface>
             <friction>
               <ode>
-                <mu>50.0</mu>
-                <mu2>50.0</mu2>
+                <mu>100.0</mu>
+                <mu2>100.0</mu2>
               </ode>
             </friction>
+            <contact>
+              <ode>
+                <kp>1000000.0</kp>
+                <kd>100.0</kd>
+                <min_depth>0.001</min_depth>
+              </ode>
+            </contact>
           </surface>
         </collision>
         <visual name="visual">
@@ -794,10 +801,17 @@
           <surface>
             <friction>
               <ode>
-                <mu>50.0</mu>
-                <mu2>50.0</mu2>
+                <mu>100.0</mu>
+                <mu2>100.0</mu2>
               </ode>
             </friction>
+            <contact>
+              <ode>
+                <kp>1000000.0</kp>
+                <kd>100.0</kd>
+                <min_depth>0.001</min_depth>
+              </ode>
+            </contact>
           </surface>
         </collision>
         <visual name="visual">
@@ -835,10 +849,17 @@
           <surface>
             <friction>
               <ode>
-                <mu>50.0</mu>
-                <mu2>50.0</mu2>
+                <mu>100.0</mu>
+                <mu2>100.0</mu2>
               </ode>
             </friction>
+            <contact>
+              <ode>
+                <kp>1000000.0</kp>
+                <kd>100.0</kd>
+                <min_depth>0.001</min_depth>
+              </ode>
+            </contact>
           </surface>
         </collision>
         <visual name="visual">
@@ -876,10 +897,17 @@
           <surface>
             <friction>
               <ode>
-                <mu>50.0</mu>
-                <mu2>50.0</mu2>
+                <mu>100.0</mu>
+                <mu2>100.0</mu2>
               </ode>
             </friction>
+            <contact>
+              <ode>
+                <kp>1000000.0</kp>
+                <kd>100.0</kd>
+                <min_depth>0.001</min_depth>
+              </ode>
+            </contact>
           </surface>
         </collision>
         <visual name="visual">
@@ -917,10 +945,17 @@
           <surface>
             <friction>
               <ode>
-                <mu>50.0</mu>
-                <mu2>50.0</mu2>
+                <mu>100.0</mu>
+                <mu2>100.0</mu2>
               </ode>
             </friction>
+            <contact>
+              <ode>
+                <kp>1000000.0</kp>
+                <kd>100.0</kd>
+                <min_depth>0.001</min_depth>
+              </ode>
+            </contact>
           </surface>
         </collision>
         <visual name="visual">

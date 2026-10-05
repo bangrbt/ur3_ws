@@ -6,174 +6,212 @@
   <!-- Include the default UR robot definition -->
   <xacro:include filename="$(find ur_description)/urdf/ur.urdf.xacro"/>
 
-  <!-- Bàn tay kẹp cơ khí (2-Finger Parallel Gripper) gắn trực tiếp vào tool0 -->
-  <!-- 1. Đế kẹp (Gripper Base) -->
-  <link name="gripper_base">
+  <!-- ======================================================================= -->
+  <!-- INDUSTRIAL ROBOTIQ 2F-85 PARALLEL GRIPPER GẮN TRỰC TIẾP VÀO TOOL0      -->
+  <!-- ======================================================================= -->
+
+  <!-- 1. Adapter kim loại nối cổ tay UR3 sang Robotiq Flange -->
+  <link name="ur_to_robotiq_link">
     <visual>
-      <origin xyz="0 0 0.02" rpy="0 0 0"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <cylinder radius="0.038" length="0.04"/>
+        <mesh filename="package://ur3_llm_control/meshes/robotiq_2f_85/visual/ur_to_robotiq_adapter.dae"/>
       </geometry>
-      <material name="gripper_dark">
-        <color rgba="0.18 0.18 0.18 1.0"/>
-      </material>
     </visual>
     <collision>
-      <origin xyz="0 0 0.02" rpy="0 0 0"/>
+      <origin xyz="0 0 0.0055" rpy="0 0 0"/>
       <geometry>
-        <cylinder radius="0.038" length="0.04"/>
+        <cylinder radius="0.038" length="0.011"/>
       </geometry>
     </collision>
     <inertial>
-      <mass value="0.2"/>
-      <origin xyz="0 0 0.02" rpy="0 0 0"/>
+      <mass value="0.1"/>
+      <origin xyz="0 0 0.0055" rpy="0 0 0"/>
       <inertia ixx="0.0001" ixy="0" ixz="0" iyy="0.0001" iyz="0" izz="0.0001"/>
     </inertial>
   </link>
 
-  <joint name="gripper_base_joint" type="fixed">
+  <joint name="ur_to_robotiq_joint" type="fixed">
     <parent link="tool0"/>
-    <child link="gripper_base"/>
+    <child link="ur_to_robotiq_link"/>
     <origin xyz="0 0 0" rpy="0 0 0"/>
   </joint>
 
-  <!-- 2. Ngon kep trai (Left Finger - Active Prismatic Joint) -->
+  <!-- 2. Thân chính Robotiq 2F-85 Gripper Base (Màu đen kim loại cao cấp) -->
+  <link name="robotiq_base_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://ur3_llm_control/meshes/robotiq_2f_85/visual/robotiq_base.dae"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.04" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.075 0.075 0.08"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.6"/>
+      <origin xyz="0 0 0.035" rpy="0 0 0"/>
+      <inertia ixx="0.0005" ixy="0" ixz="0" iyy="0.0005" iyz="0" izz="0.0004"/>
+    </inertial>
+  </link>
+
+  <joint name="robotiq_base_joint" type="fixed">
+    <parent link="ur_to_robotiq_link"/>
+    <child link="robotiq_base_link"/>
+    <origin xyz="0 0 0.011" rpy="0 0 ${pi/2}"/>
+  </joint>
+
+  <!-- 3. Ngón kẹp trái (Robotiq Left Finger & Tip - Active Prismatic Joint) -->
   <link name="gripper_left_finger">
     <visual>
-      <origin xyz="0 0 0.025" rpy="0 0 0"/>
+      <!-- Finger Link & Finger Tip Mesh Robotiq -->
+      <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size="0.016 0.008 0.05"/>
+        <mesh filename="package://ur3_llm_control/meshes/robotiq_2f_85/visual/left_finger_tip.dae"/>
       </geometry>
-      <material name="gripper_silver">
-        <color rgba="0.8 0.8 0.8 1.0"/>
-      </material>
     </visual>
+    <!-- Đệm kẹp cao su tiếp xúc ma sát cao (Contact Finger Pad) -->
     <collision>
-      <origin xyz="0 0 0.025" rpy="0 0 0"/>
+      <origin xyz="0.0 -0.006 0.018" rpy="0 0 0"/>
       <geometry>
-        <box size="0.016 0.008 0.05"/>
+        <box size="0.024 0.008 0.038"/>
       </geometry>
     </collision>
     <inertial>
       <mass value="0.05"/>
-      <origin xyz="0 0 0.025" rpy="0 0 0"/>
-      <inertia ixx="0.0001" ixy="0" ixz="0" iyy="0.0001" iyz="0" izz="0.0001"/>
+      <origin xyz="0 0 0.015" rpy="0 0 0"/>
+      <inertia ixx="0.00002" ixy="0" ixz="0" iyy="0.00002" iyz="0" izz="0.00001"/>
     </inertial>
   </link>
 
+  <!-- Khớp ngón trái: trượt theo trục Y từ 0.016m (kẹp chặt khối 4cm) đến 0.045m (mở rộng 9cm) -->
   <joint name="gripper_left_joint" type="prismatic">
-    <parent link="gripper_base"/>
+    <parent link="robotiq_base_link"/>
     <child link="gripper_left_finger"/>
-    <origin xyz="0 0.02 0.04" rpy="0 0 0"/>
+    <origin xyz="0 0.02 0.065" rpy="0 0 0"/>
     <axis xyz="0 1 0"/>
-    <limit lower="-0.01" upper="0.025" effort="100.0" velocity="0.2"/>
+    <limit lower="-0.004" upper="0.025" effort="300.0" velocity="0.3"/>
   </joint>
 
-  <!-- 3. Ngon kep phai (Right Finger - Active Prismatic Joint) -->
+  <!-- 4. Ngón kẹp phải (Robotiq Right Finger & Tip - Active Prismatic Joint) -->
   <link name="gripper_right_finger">
     <visual>
-      <origin xyz="0 0 0.025" rpy="0 0 0"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size="0.016 0.008 0.05"/>
+        <mesh filename="package://ur3_llm_control/meshes/robotiq_2f_85/visual/right_finger_tip.dae"/>
       </geometry>
-      <material name="gripper_silver">
-        <color rgba="0.8 0.8 0.8 1.0"/>
-      </material>
     </visual>
+    <!-- Đệm kẹp cao su tiếp xúc ma sát cao (Contact Finger Pad) -->
     <collision>
-      <origin xyz="0 0 0.025" rpy="0 0 0"/>
+      <origin xyz="0.0 0.006 0.018" rpy="0 0 0"/>
       <geometry>
-        <box size="0.016 0.008 0.05"/>
+        <box size="0.024 0.008 0.038"/>
       </geometry>
     </collision>
     <inertial>
       <mass value="0.05"/>
-      <origin xyz="0 0 0.025" rpy="0 0 0"/>
-      <inertia ixx="0.0001" ixy="0" ixz="0" iyy="0.0001" iyz="0" izz="0.0001"/>
+      <origin xyz="0 0 0.015" rpy="0 0 0"/>
+      <inertia ixx="0.00002" ixy="0" ixz="0" iyy="0.00002" iyz="0" izz="0.00001"/>
     </inertial>
   </link>
 
+  <!-- Khớp ngón phải: trượt đối xứng theo trục Y -->
   <joint name="gripper_right_joint" type="prismatic">
-    <parent link="gripper_base"/>
+    <parent link="robotiq_base_link"/>
     <child link="gripper_right_finger"/>
-    <origin xyz="0 -0.02 0.04" rpy="0 0 0"/>
+    <origin xyz="0 -0.02 0.065" rpy="0 0 0"/>
     <axis xyz="0 1 0"/>
-    <limit lower="-0.025" upper="0.01" effort="100.0" velocity="0.2"/>
+    <limit lower="-0.025" upper="0.004" effort="300.0" velocity="0.3"/>
   </joint>
 
-  <!-- 4. Diem tac dong kep trung tam (Tool Center Point - TCP) -->
+  <!-- 5. Điểm kẹp trung tâm (Tool Center Point - TCP) -->
   <link name="gripper_tcp"/>
   <joint name="gripper_tcp_joint" type="fixed">
-    <parent link="gripper_base"/>
+    <parent link="robotiq_base_link"/>
     <child link="gripper_tcp"/>
-    <origin xyz="0 0 0.08" rpy="0 0 0"/>
+    <origin xyz="0 0 0.085" rpy="0 0 0"/>
   </joint>
 
-  <!-- GAZEBO PLUGINS: DIEU KHIEN KHOP KEP & CO CHE DONG/MO VAT THE -->
+  <!-- ======================================================================= -->
+  <!-- GAZEBO PHYSICS & CONTACT PROPERTIES: PURE FRICTION CONTACT GRASP        -->
+  <!-- ======================================================================= -->
+
+  <!-- Độ nhám & ma sát cực cao cho đệm ngón tay trái -->
+  <gazebo reference="gripper_left_finger">
+    <collision>
+      <surface>
+        <friction>
+          <ode>
+            <mu>100.0</mu>
+            <mu2>100.0</mu2>
+            <slip1>0.0</slip1>
+            <slip2>0.0</slip2>
+          </ode>
+        </friction>
+        <contact>
+          <ode>
+            <kp>1000000.0</kp>
+            <kd>100.0</kd>
+            <min_depth>0.001</min_depth>
+            <max_vel>0.01</max_vel>
+          </ode>
+        </contact>
+      </surface>
+    </collision>
+  </gazebo>
+
+  <!-- Độ nhám & ma sát cực cao cho đệm ngón tay phải -->
+  <gazebo reference="gripper_right_finger">
+    <collision>
+      <surface>
+        <friction>
+          <ode>
+            <mu>100.0</mu>
+            <mu2>100.0</mu2>
+            <slip1>0.0</slip1>
+            <slip2>0.0</slip2>
+          </ode>
+        </friction>
+        <contact>
+          <ode>
+            <kp>1000000.0</kp>
+            <kd>100.0</kd>
+            <min_depth>0.001</min_depth>
+            <max_vel>0.01</max_vel>
+          </ode>
+        </contact>
+      </surface>
+    </collision>
+  </gazebo>
+
+  <!-- ======================================================================= -->
+  <!-- GAZEBO JOINT POSITION CONTROLLERS: ĐIỀU KHIỂN CỬ ĐỘNG 2 NGÓN TAY THỰC   -->
+  <!-- ======================================================================= -->
   <gazebo>
     <plugin
       filename="ignition-gazebo-joint-position-controller-system"
       name="ignition::gazebo::systems::JointPositionController">
       <joint_name>gripper_left_joint</joint_name>
       <topic>/gripper/left_cmd</topic>
-      <p_gain>200.0</p_gain>
+      <p_gain>500.0</p_gain>
       <i_gain>1.0</i_gain>
-      <d_gain>0.5</d_gain>
-      <cmd_max>100.0</cmd_max>
-      <cmd_min>-100.0</cmd_min>
+      <d_gain>2.0</d_gain>
+      <cmd_max>300.0</cmd_max>
+      <cmd_min>-300.0</cmd_min>
     </plugin>
     <plugin
       filename="ignition-gazebo-joint-position-controller-system"
       name="ignition::gazebo::systems::JointPositionController">
       <joint_name>gripper_right_joint</joint_name>
       <topic>/gripper/right_cmd</topic>
-      <p_gain>200.0</p_gain>
+      <p_gain>500.0</p_gain>
       <i_gain>1.0</i_gain>
-      <d_gain>0.5</d_gain>
-      <cmd_max>100.0</cmd_max>
-      <cmd_min>-100.0</cmd_min>
-    </plugin>
-
-    <!-- DetachableJoint cho 5 vat the -->
-    <plugin filename="ignition-gazebo-detachable-joint-system"
-            name="ignition::gazebo::systems::DetachableJoint">
-      <parent_link>tool0</parent_link>
-      <child_model>red_cube</child_model>
-      <child_link>link</child_link>
-      <detach_topic>/gripper/detach_red</detach_topic>
-      <attach_topic>/gripper/attach_red</attach_topic>
-    </plugin>
-    <plugin filename="ignition-gazebo-detachable-joint-system"
-            name="ignition::gazebo::systems::DetachableJoint">
-      <parent_link>tool0</parent_link>
-      <child_model>yellow_cube</child_model>
-      <child_link>link</child_link>
-      <detach_topic>/gripper/detach_yellow</detach_topic>
-      <attach_topic>/gripper/attach_yellow</attach_topic>
-    </plugin>
-    <plugin filename="ignition-gazebo-detachable-joint-system"
-            name="ignition::gazebo::systems::DetachableJoint">
-      <parent_link>tool0</parent_link>
-      <child_model>blue_cube</child_model>
-      <child_link>link</child_link>
-      <detach_topic>/gripper/detach_blue</detach_topic>
-      <attach_topic>/gripper/attach_blue</attach_topic>
-    </plugin>
-    <plugin filename="ignition-gazebo-detachable-joint-system"
-            name="ignition::gazebo::systems::DetachableJoint">
-      <parent_link>tool0</parent_link>
-      <child_model>green_cube</child_model>
-      <child_link>link</child_link>
-      <detach_topic>/gripper/detach_green</detach_topic>
-      <attach_topic>/gripper/attach_green</attach_topic>
-    </plugin>
-    <plugin filename="ignition-gazebo-detachable-joint-system"
-            name="ignition::gazebo::systems::DetachableJoint">
-      <parent_link>tool0</parent_link>
-      <child_model>purple_cube</child_model>
-      <child_link>link</child_link>
-      <detach_topic>/gripper/detach_purple</detach_topic>
-      <attach_topic>/gripper/attach_purple</attach_topic>
+      <d_gain>2.0</d_gain>
+      <cmd_max>300.0</cmd_max>
+      <cmd_min>-300.0</cmd_min>
     </plugin>
   </gazebo>
 </robot>
