@@ -90,12 +90,21 @@ class RobotSkills:
             JointState, "/joint_states", self._joint_state_cb, 10
         )
 
+        # Camera Perception Subscription
+        self.camera_perception_state = {}
+        self.camera_sub = self.node.create_subscription(
+            String, "/scene/camera_state", self._camera_state_cb, 10
+        )
+
         # TF Buffer & Listener for gripper tracking
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self.node)
 
         # Timer dinh ky theo doi tool0 khi dang gap vat de cap nhat vi tri vat the
         self.tracking_timer = self.node.create_timer(0.1, self._tracking_callback)
+
+        # Khoi tao trang thai gripper vat ly va tach cac DetachableJoint ban dau
+        self._init_gripper_hardware()
 
         # Orientation chu vi thang dung vuong goc mat ban (Top-down grasp)
         # Khau tac dong cuoi quay huong xuong ban: Pitch = 180 do
@@ -120,8 +129,58 @@ class RobotSkills:
         ]
 
     # =========================================================================
-    # --- HELPER DONG BO GAZEBO VA TF ---
+    # --- HELPER DIEU KHIEN GRIPPER VA DONG BO CAM BIEN ---
     # =========================================================================
+
+    def _send_ignition_topic(self, topic: str, msg_type: str = "ignition.msgs.Empty", payload: str = "unused: true"):
+        """Gui command qua Ignition Gazebo topic trong luong nen."""
+        def _call():
+            cmd = ["ign", "topic", "-t", topic, "-m", msg_type, "-p", payload]
+            try:
+                subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=0.8)
+            except Exception:
+                pass
+        threading.Thread(target=_call, daemon=True).start()
+
+    def _send_gripper_joint_cmd(self, position_left: float, position_right: float):
+        """Publish joint position command de dieu khien ngon tay gripper vat ly."""
+        def _call():
+            try:
+                cmd_left = ["ign", "topic", "-t", "/gripper/left_cmd", "-m", "ignition.msgs.Double", "-p", f"data: {position_left:.4f}"]
+                cmd_right = ["ign", "topic", "-t", "/gripper/right_cmd", "-m", "ignition.msgs.Double", "-p", f"data: {position_right:.4f}"]
+                subprocess.run(cmd_left, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=0.6)
+                subprocess.run(cmd_right, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=0.6)
+            except Exception:
+                pass
+        threading.Thread(target=_call, daemon=True).start()
+
+    def _init_gripper_hardware(self):
+        """Mo gripper va detach toan bo 5 khoi ban dau de khong bi dinh vao tool0."""
+        def _async_init():
+            time.sleep(1.0)
+            self._send_gripper_joint_cmd(0.02, -0.02)
+            for color in ["red", "yellow", "blue", "green", "purple"]:
+                self._send_ignition_topic(f"/gripper/detach_{color}")
+                time.sleep(0.05)
+        threading.Thread(target=_async_init, daemon=True).start()
+
+    def _camera_state_cb(self, msg: String):
+        """Nhan ket qua nhan dien vi tri vat the va zone tu camera perception."""
+        try:
+            data = json.loads(msg.data)
+            self.camera_perception_state = data
+            detected = data.get("detected_objects", {})
+            # Cap nhat toa do vat the quan sat duoc neu robot khong dang cam vat do
+            for obj_name, info in detected.items():
+                if self.holding_object != obj_name and "x" in info and "y" in info:
+                    self.object_positions[obj_name] = [info["x"], info["y"], info.get("z", 0.02)]
+            # Cap nhat zone occupants tu camera
+            zones = data.get("zone_occupants", {})
+            for z, occ in zones.items():
+                if z in self.zone_occupants and (self.holding_object is None or self.holding_object != occ):
+                    self.zone_occupants[z] = occ
+        except Exception:
+            pass
 
     def _joint_state_cb(self, msg: JointState):
         """Cap nhat gia tri khop hien tai."""
@@ -189,21 +248,27 @@ class RobotSkills:
         return "SUCCESS" if success else "PLANNING_FAILED"
 
     def open_gripper(self) -> str:
-        """Mo kep va nha vat the khoi PlanningScene (neu dang giu)."""
+        """Mo ngon tay kep vat ly va nha DetachableJoint khoi robot."""
         self.node.get_logger().info("Thuc thi Skill: open_gripper()")
+        self._send_gripper_joint_cmd(0.02, -0.02)
         if self.holding_object:
+            color = self.holding_object.replace("_cube", "")
+            self._send_ignition_topic(f"/gripper/detach_{color}")
             self._detach_object_from_robot(self.holding_object)
             self.holding_object = None
-        time.sleep(0.15)
+        time.sleep(0.2)
         return "SUCCESS"
 
     def close_gripper(self, object_name: str = None) -> str:
-        """Dong kep va dinh kem vat the vao PlanningScene robot."""
+        """Dong ngon tay kep vat ly va kich hoat DetachableJoint giu chat vat."""
         self.node.get_logger().info(f"Thuc thi Skill: close_gripper(object={object_name})")
+        self._send_gripper_joint_cmd(-0.005, 0.005)
         if object_name:
+            color = object_name.replace("_cube", "")
+            self._send_ignition_topic(f"/gripper/attach_{color}")
             self._attach_object_to_robot(object_name)
             self.holding_object = object_name
-        time.sleep(0.15)
+        time.sleep(0.2)
         return "SUCCESS"
 
     def move_above(self, target_name: str) -> str:
@@ -283,16 +348,14 @@ class RobotSkills:
             if not self._move_to_pose_target(grasp_pose):
                 return "PLANNING_FAILED"
 
-        # 4. Dong kep (Dinh kem vat the & dong bo vi tri Gazebo)
+        # 4. Dong kep (Dinh kem vat the & vat ly gripper kien tao)
         self.close_gripper(object_name)
-        self._set_gazebo_model_pose(object_name, obj_xy[0], obj_xy[1], self.grasp_height)
         self._publish_dynamic_cube_state()
 
         # 5. Nhac vat len cao (Cartesian thang dung)
         if not self._move_cartesian([approach_pose]):
             self._move_to_pose_target(approach_pose)
 
-        self._set_gazebo_model_pose(object_name, obj_xy[0], obj_xy[1], self.approach_height)
         self.object_positions[object_name] = [obj_xy[0], obj_xy[1], self.approach_height]
         self._publish_dynamic_cube_state()
 
@@ -300,12 +363,12 @@ class RobotSkills:
 
     def place(self, object_name: str, zone_name: str) -> str:
         """
-        Chu trinh dat vat hoan chinh:
+        Chu trinh dat vat hoan chinh bang gripper vat ly:
         1. Kiem tra tinh hop le
         2. Tinh toan toa do dat (tu dong tranh chong de neu o da co vat khac)
         3. Di chuyen tren khong toi Zone (Cartesian Transfer ngang)
         4. Ha vat xuong mat ban (Cartesian Descend)
-        5. Mo kep (Nha vat & dat on dinh trong Gazebo)
+        5. Mo kep (Nha DetachableJoint & tha vat that trong Gazebo)
         6. Nhac kep len cao (Cartesian Retract)
         7. Cap nhat toa do vat the va trang thai zone
         """
@@ -340,7 +403,6 @@ class RobotSkills:
             if not self._move_to_pose_target(zone_approach_pose):
                 return "PLANNING_FAILED"
 
-        self._set_gazebo_model_pose(object_name, target_x, target_y, self.approach_height)
         self.object_positions[object_name] = [target_x, target_y, self.approach_height]
         self._publish_dynamic_cube_state()
 
@@ -355,12 +417,11 @@ class RobotSkills:
             if not self._move_to_pose_target(place_pose):
                 return "PLANNING_FAILED"
 
-        # 3. Mo kep (Nha vat & dat vat on dinh len mat Zone)
+        # 3. Mo kep (Nha vat & de vat on dinh theo vat ly Gazebo)
         self.open_gripper()
         final_pos = [target_x, target_y, 0.02]
         self.object_positions[object_name] = final_pos
         self.zone_occupants[zone_name] = object_name
-        self._set_gazebo_model_pose(object_name, final_pos[0], final_pos[1], final_pos[2])
         self._publish_dynamic_cube_state()
 
         # 4. Nhac kep len cao (Cartesian Retract)
@@ -587,6 +648,34 @@ class RobotSkills:
     def inspect_scene(self) -> dict:
         """Bao cao vi tri tat ca cac vat the, trang thai zone va trang thai tay kep."""
         return self.get_scene_state()
+
+    def detect_objects(self) -> dict:
+        """Kiem tra va nhan dien vi tri cac khoi hop qua camera perception."""
+        self.node.get_logger().info("Thuc thi Skill: detect_objects() qua Camera")
+        detected = self.camera_perception_state.get("detected_objects", {})
+        if not detected:
+            return self.get_cube_locations()
+        result = {}
+        for obj, info in detected.items():
+            result[obj] = info.get("location", "unknown")
+        return result
+
+    def check_zone(self, zone_name: str) -> str:
+        """Kiem tra trang thai cua 1 zone cu the (co vat chiem cho hay trong)."""
+        self.node.get_logger().info(f"Thuc thi Skill: check_zone({zone_name})")
+        return self.zone_occupants.get(zone_name)
+
+    def find_free_position(self) -> str:
+        """Tim mot vi tri vung dem hoac vi tri trong phu hop tren ban."""
+        self.node.get_logger().info("Thuc thi Skill: find_free_position()")
+        temp_candidates = ["zone_temp_1", "zone_temp_2", "zone_temp_3", "zone_temp"]
+        for z in temp_candidates:
+            if self.zone_occupants.get(z) is None:
+                return z
+        for z in ["zone_c", "zone_b", "zone_a"]:
+            if self.zone_occupants.get(z) is None:
+                return z
+        return "zone_temp_1"
 
     # =========================================================================
     # --- CAC HAM BO TRO MOVEIT 2 ---

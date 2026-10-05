@@ -69,12 +69,12 @@ class LLMPlanner:
             zone_occupants = scene_state.get("zone_occupants", {})
 
         state_lines = []
-        for obj in ["red_cube", "yellow_cube", "blue_cube"]:
+        for obj in ["red_cube", "yellow_cube", "blue_cube", "green_cube", "purple_cube"]:
             loc = cube_locs.get(obj, "source_tray")
             state_lines.append(f"  * {obj}: currently at '{loc}'")
         occ_str = json.dumps(zone_occupants) if zone_occupants else "all zones empty"
 
-        prompt = f"""You are an advanced, optimal Task Planner for a 6-DOF Universal Robots UR3 manipulator.
+        prompt = f"""You are an advanced, optimal Task Planner for a 6-DOF Universal Robots UR3 manipulator equipped with an active 2-finger gripper and an overhead RGB Camera perception system.
 Your job is to translate Natural Language Commands from the user into a STRICT JSON Structured Plan.
 
 ### HARD CONSTRAINTS:
@@ -83,60 +83,57 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
 3. OUTPUT STRICT JSON ONLY with keys "thought" and "plan". No markdown formatting outside JSON.
 
 ### ALLOWED ROBOT SKILLS:
-- pick: Pick an object from table. Args: "object" (string: red_cube, yellow_cube, blue_cube)
-- place: Place the currently held object into target zone. Args: "object" (string), "zone" (string: zone_a, zone_b, zone_c, zone_temp)
-- home: Move arm to home / observation pose. Args: none
-- swap: Swap positions of two cubes using zone_temp. Args: "object_a", "object_b"
+- detect_objects: Trigger camera to recognize positions of all 5 cubes. Args: none
+- check_zone: Inspect if a zone is occupied. Args: "zone" (string: zone_a, zone_b, zone_c)
+- find_free_position: Find an empty temporary buffer position. Args: none
+- pick: Close physical gripper and attach cube. Args: "object" (string: red_cube, yellow_cube, blue_cube, green_cube, purple_cube)
+- place: Open physical gripper and release cube into zone. Args: "object" (string), "zone" (string: zone_a, zone_b, zone_c, zone_temp_1, zone_temp_2, zone_temp_3, zone_temp)
+- home: Move arm to safe observation / home pose. Args: none
+- swap: Swap positions of two cubes using a temporary buffer. Args: "object_a", "object_b"
 - stack: Stack object_top on top of object_bottom. Args: "object_top", "object_bottom"
-- reset_scene: Reset all 3 cubes back to initial source trays. Args: none
+- reset_scene: Reset all 5 cubes back to initial source trays. Args: none
 - inspect_scene: Query status of all cubes and zones. Args: none
 - clear_zone: Clear a specific zone. Args: "zone" (string)
 
-### ALLOWED OBJECTS:
-- "red_cube", "yellow_cube", "blue_cube"
+### ALLOWED OBJECTS (5 BLOCKS):
+- "red_cube", "yellow_cube", "blue_cube", "green_cube", "purple_cube"
 
-### ALLOWED ZONES:
-- "zone_a", "zone_b", "zone_c", "zone_temp"
+### ALLOWED ZONES (3 TARGET ZONES + TEMPORARY BUFFERS):
+- Target Zones: "zone_a", "zone_b", "zone_c"
+- Temporary Zones: "zone_temp_1", "zone_temp_2", "zone_temp_3", "zone_temp"
 
-### REAL-TIME WORKSPACE SCENE STATE:
+### REAL-TIME WORKSPACE SCENE STATE (CAMERA & SENSORS):
 {chr(10).join(state_lines)}
 - Zone occupants: {occ_str}
 
-### ⚠️ CRITICAL EXECUTION PRINCIPLES (NÓI GÌ LÀM NẤY - TUYỆT ĐỐI TUÂN THỦ Ý ĐỊNH NGƯỜI DÙNG):
-1. USER EXPLICIT COMMAND SUPREMACY (ƯU TIÊN TUYỆT ĐỐI CHO LỆNH TỪNG KHỐI / Ô CỤ THỂ):
-   - Khi người dùng chỉ định một khối vào một ô cụ thể (hoặc một ô bất kỳ):
-     BẠN PHẢI TUÂN THEO 100% ĐÍCH ĐẾN MÀ NGƯỜI DÙNG YÊU CẦU!
-     TUYỆT ĐỐI KHÔNG ĐƯỢC tự ý đổi ô theo màu khối hay theo bảng mã sinh viên!
-   - Ví dụ:
-     * "Đưa khối đỏ vào ô A" / "Put red cube in zone A" -> BẮT BUỘC đặt red_cube vào zone_a! (KHÔNG ĐƯỢC đặt vào zone_c hay zone_b).
-     * "Đưa khối vàng vào ô C" / "Put yellow cube in zone C" -> BẮT BUỘC đặt yellow_cube vào zone_c! (KHÔNG ĐƯỢC đặt vào zone_b).
-     * "Đặt khối xanh vào ô B" / "Put blue cube in zone B" -> BẮT BUỘC đặt blue_cube vào zone_b! (KHÔNG ĐƯỢC đặt vào zone_a).
-     * "Đưa khối đỏ vào ô bất kỳ" / "Đặt vào ô trống bất kỳ" -> Chọn 1 ô đang trống (zone_a, zone_b, hoặc zone_c) và đặt red_cube vào đó!
-   - Nếu ô mục tiêu đang có khối khác chiếm giữ:
-     * Bước 1: Gắp khối đang chiếm giữ chuyển tạm sang "zone_temp".
-     * Bước 2: Gắp khối theo yêu cầu đặt vào ô mục tiêu.
+### ⚠️ CRITICAL EXECUTION PRINCIPLES (CONFLICT RESOLUTION & CONSTRAINTS):
+1. AUTOMATIC CONFLICT RESOLUTION (XỬ LÝ VÙNG ĐÍCH BỊ CHIẾM CHỖ):
+   - Khi người dùng yêu cầu đưa một khối vào ô đích (ví dụ "Put red_cube in zone_b"):
+     Nếu ô đích đang bị khối khác chiếm giữ (ví dụ zone_b đang có blue_cube):
+     * Robot PHẢI giải phóng ô đích trước bằng cách di chuyển vật cản sang vùng đệm tạm ("zone_temp_1", "zone_temp_2", hoặc "zone_temp_3")!
+     * Ví dụ chuỗi kế hoạch:
+       1. check_zone("zone_b")
+       2. pick("blue_cube") -> place("blue_cube", "zone_temp_1")
+       3. pick("red_cube") -> place("red_cube", "zone_b")
+       4. home()
 
-2. STUDENT ID SORTING (CHỈ KHI NGƯỜI DÙNG NÊU RÕ "MÃ SINH VIÊN" / "MSSV" / "STUDENT ID"):
-   - Bảng ánh xạ theo MSSV DƯỚI ĐÂY CHỈ VÀ CHỈ ĐƯỢC ÁP DỤNG khi câu lệnh người dùng nói rõ "mã sinh viên", "student id", "mssv", "theo mã", hoặc "sắp xếp toàn bộ":
-     * Sinh viên: {self.student_name} | MSSV: {self.student_id} (XX = {self.xx} -> P = {self.p_value})
-     * Quy ước cho P = {self.p_value}:
-       - zone_a: {self.zone_mapping['zone_a']}
-       - zone_b: {self.zone_mapping['zone_b']}
-       - zone_c: {self.zone_mapping['zone_c']}
-   - Đối với tất cả các câu lệnh khác (gắp 1 khối, đổi chỗ, xếp chồng, đặt vào ô bất kỳ), BẢNG ÁNH XẠ NÀY HOÀN TOÀN VÔ HIỆU HÓA!
+2. USER EXPLICIT COMMAND SUPREMACY (ƯU TIÊN TUYỆT ĐỐI CHO LỆNH TỪNG KHỐI / Ô CỤ THỂ):
+   - BẮT BUỘC tuân theo 100% đích đến người dùng yêu cầu. Không được tự ý đổi ô theo màu khối!
 
 3. BỎ QUA THAO TÁC THỪA (PRESERVE CORRECT POSITIONS):
-   - Nếu khối đã ở sẵn trong ô mà người dùng yêu cầu, KHÔNG ĐƯỢC gắp lên rồi thả lại! Trả về {{"thought": "Khối đã ở sẵn vị trí yêu cầu.", "plan": [{{"skill": "home"}}]}}.
+   - Nếu khối đã ở sẵn trong ô yêu cầu, KHÔNG gắp lên thả lại.
 
-4. Kết thúc mọi kế hoạch thao tác bằng {{"skill": "home"}}.
-5. TỪ CHỐI LỆNH KHÔNG HỢP LỆ: Nếu yêu cầu vật thể hoặc ô không có trong danh sách cho phép (ví dụ "quả táo", "vùng D"), trả về "plan": [] và giải thích trong "thought".
+4. Luôn kết thúc kế hoạch bằng {{"skill": "home"}}.
 
 ### OUTPUT JSON FORMAT:
 {{
-  "thought": "Reasoning in Vietnamese explaining user intent and exact steps...",
+  "thought": "Reasoning in Vietnamese explaining camera inspection, conflict check and exact steps...",
   "plan": [
+    {{"skill": "check_zone", "zone": "zone_b"}},
+    {{"skill": "pick", "object": "blue_cube"}},
+    {{"skill": "place", "object": "blue_cube", "zone": "zone_temp_1"}},
     {{"skill": "pick", "object": "red_cube"}},
-    {{"skill": "place", "object": "red_cube", "zone": "zone_a"}},
+    {{"skill": "place", "object": "red_cube", "zone": "zone_b"}},
     {{"skill": "home"}}
   ]
 }}
@@ -509,7 +506,14 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
                 ],
                 "blue_cube": [
                     r"\bblue_cube\b", r"\bkhoi mau xanh lam\b", r"\bkhoi mau xanh duong\b", r"\bmau xanh lam\b",
-                    r"\bmau xanh duong\b", r"\bxanh lam\b", r"\bxanh duong\b", r"\bkhoi xanh\b", r"\bblue\b", r"\bxanh\b"
+                    r"\bmau xanh duong\b", r"\bxanh lam\b", r"\bxanh duong\b", r"\bkhoi xanh\b", r"\bblue\b"
+                ],
+                "green_cube": [
+                    r"\bgreen_cube\b", r"\bkhoi mau xanh la\b", r"\bkhoi mau luc\b", r"\bmau xanh la\b",
+                    r"\bxanh la\b", r"\bxanh luc\b", r"\bgreen\b"
+                ],
+                "purple_cube": [
+                    r"\bpurple_cube\b", r"\bkhoi mau tim\b", r"\bmau tim\b", r"\bkhoi tim\b", r"\bpurple\b", r"\btim\b"
                 ]
             }
             matches = []
@@ -550,12 +554,15 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
                     ]
                 }
 
-        # 7. Trich xuat Zone (A, B, C, Temp)
+        # 7. Trich xuat Zone (A, B, C, Temp 1, 2, 3)
         target_zone = None
         zone_patterns = {
             "zone_a": [r"\bzone[_ ]?a\b", r"\bvung[_ ]?a\b", r"\bo[_ ]?a\b", r"\bkhu[_ ]?a\b", r"\bkhay[_ ]?a\b"],
             "zone_b": [r"\bzone[_ ]?b\b", r"\bvung[_ ]?b\b", r"\bo[_ ]?b\b", r"\bkhu[_ ]?b\b", r"\bkhay[_ ]?b\b"],
             "zone_c": [r"\bzone[_ ]?c\b", r"\bvung[_ ]?c\b", r"\bo[_ ]?c\b", r"\bkhu[_ ]?c\b", r"\bkhay[_ ]?c\b"],
+            "zone_temp_1": [r"\bzone[_ ]?temp[_ ]?1\b", r"\bo[_ ]?tam[_ ]?1\b", r"\bvung[_ ]?tam[_ ]?1\b"],
+            "zone_temp_2": [r"\bzone[_ ]?temp[_ ]?2\b", r"\bo[_ ]?tam[_ ]?2\b", r"\bvung[_ ]?tam[_ ]?2\b"],
+            "zone_temp_3": [r"\bzone[_ ]?temp[_ ]?3\b", r"\bo[_ ]?tam[_ ]?3\b", r"\bvung[_ ]?tam[_ ]?3\b"],
             "zone_temp": [r"\bzone[_ ]?temp\b", r"\bvung[_ ]?tam\b", r"\bo[_ ]?tam\b", r"\bkhu[_ ]?tam\b", r"\bvung[_ ]?dem\b"]
         }
         for z_name, z_pats in zone_patterns.items():
@@ -565,7 +572,7 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
 
         # Kiem tra vat the khong hop le de validator phat hien
         invalid_obj = None
-        for inv in ["qua tao", "apple", "khoi xanh la", "green", "green_cube", "trai tao", "qua bong", "ball"]:
+        for inv in ["qua tao", "apple", "trai tao", "qua bong", "ball", "orange"]:
             if inv in cmd_clean:
                 invalid_obj = inv
                 break
@@ -604,16 +611,22 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
                 return {"thought": thought, "plan": [{"skill": "home"}]}
 
             plan_steps = []
-            # Neu zone dich dang co vat the khac: tam thoi dua vat the do ra zone_temp
+            # Neu zone dich dang co vat the khac: kiem tra zone va tam thoi dua vat the do ra zone_temp_1
             if cur_zone_occ and cur_zone_occ != target_obj:
+                temp_dest = "zone_temp_1"
+                for z_temp in ["zone_temp_1", "zone_temp_2", "zone_temp_3"]:
+                    if not zone_occs.get(z_temp):
+                        temp_dest = z_temp
+                        break
+                plan_steps.append({"skill": "check_zone", "zone": target_zone})
                 plan_steps.append({"skill": "pick", "object": cur_zone_occ})
-                plan_steps.append({"skill": "place", "object": cur_zone_occ, "zone": "zone_temp"})
+                plan_steps.append({"skill": "place", "object": cur_zone_occ, "zone": temp_dest})
 
             plan_steps.append({"skill": "pick", "object": target_obj})
             plan_steps.append({"skill": "place", "object": target_obj, "zone": target_zone})
             plan_steps.append({"skill": "home"})
 
-            thought = f"Tối ưu quy trình: đưa '{target_obj}' vào '{target_zone}' không gây chồng đè."
+            thought = f"Tối ưu quy trình qua camera: kiểm tra và đưa '{target_obj}' vào '{target_zone}', giải tỏa chướng ngại nếu có."
             return {"thought": thought, "plan": plan_steps}
         elif target_obj and not target_zone:
             thought = f"Nguoi dung chi yeu cau gap vat '{target_obj}'."

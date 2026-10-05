@@ -249,6 +249,8 @@ class SceneSpawner(Node):
             "tray_1": {"pos": [0.24, -0.11], "base": WAIT_BASE_COLOR, "rim": WAIT_RIM_COLOR, "lbl": "WAIT 1"},
             "tray_2": {"pos": [0.24, 0.00], "base": WAIT_BASE_COLOR, "rim": WAIT_RIM_COLOR, "lbl": "WAIT 2"},
             "tray_3": {"pos": [0.24, 0.11], "base": WAIT_BASE_COLOR, "rim": WAIT_RIM_COLOR, "lbl": "WAIT 3"},
+            "tray_4": {"pos": [0.24, -0.22], "base": WAIT_BASE_COLOR, "rim": WAIT_RIM_COLOR, "lbl": "WAIT GREEN"},
+            "tray_5": {"pos": [0.24, 0.22], "base": WAIT_BASE_COLOR, "rim": WAIT_RIM_COLOR, "lbl": "WAIT PURPLE"},
         }
         for t_name, t_info in source_trays.items():
             add_3d_tray(t_info["pos"][0], t_info["pos"][1], t_info["base"], t_info["rim"], "source_trays", t_info["lbl"])

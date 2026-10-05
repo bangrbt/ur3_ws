@@ -19,6 +19,11 @@
       filename="ignition-gazebo-scene-broadcaster-system"
       name="ignition::gazebo::systems::SceneBroadcaster">
     </plugin>
+    <plugin
+      filename="ignition-gazebo-sensors-system"
+      name="ignition::gazebo::systems::Sensors">
+      <render_engine>ogre</render_engine>
+    </plugin>
 
     <!-- Giao dien va Goc nhin Camera mac dinh Gazebo huong ve ban thao tac -->
     <gui fullscreen="0">
@@ -385,6 +390,78 @@
       </link>
     </model>
 
+    <!-- Khay chua cho 4 (WAIT 4 - Cho green_cube) -->
+    <model name="tray_green">
+      <static>true</static>
+      <pose>0.24 -0.22 0.0015 0 0 0</pose>
+      <link name="tray_green_link">
+        <visual name="floor_visual">
+          <geometry><box><size>0.086 0.086 0.003</size></box></geometry>
+          <material>
+            <ambient>0.72 0.75 0.80 1.0</ambient>
+            <diffuse>0.72 0.75 0.80 1.0</diffuse>
+            <specular>0.4 0.4 0.4 1.0</specular>
+          </material>
+        </visual>
+        <visual name="front_rim">
+          <pose>0 -0.0405 0.0045 0 0 0</pose>
+          <geometry><box><size>0.086 0.005 0.012</size></box></geometry>
+          <material><ambient>0.85 0.88 0.92 1.0</ambient><diffuse>0.85 0.88 0.92 1.0</diffuse></material>
+        </visual>
+        <visual name="back_rim">
+          <pose>0 0.0405 0.0045 0 0 0</pose>
+          <geometry><box><size>0.086 0.005 0.012</size></box></geometry>
+          <material><ambient>0.85 0.88 0.92 1.0</ambient><diffuse>0.85 0.88 0.92 1.0</diffuse></material>
+        </visual>
+        <visual name="left_rim">
+          <pose>0.0405 0 0.0045 0 0 0</pose>
+          <geometry><box><size>0.005 0.076 0.012</size></box></geometry>
+          <material><ambient>0.85 0.88 0.92 1.0</ambient><diffuse>0.85 0.88 0.92 1.0</diffuse></material>
+        </visual>
+        <visual name="right_rim">
+          <pose>-0.0405 0 0.0045 0 0 0</pose>
+          <geometry><box><size>0.005 0.076 0.012</size></box></geometry>
+          <material><ambient>0.85 0.88 0.92 1.0</ambient><diffuse>0.85 0.88 0.92 1.0</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Khay chua cho 5 (WAIT 5 - Cho purple_cube) -->
+    <model name="tray_purple">
+      <static>true</static>
+      <pose>0.24 0.22 0.0015 0 0 0</pose>
+      <link name="tray_purple_link">
+        <visual name="floor_visual">
+          <geometry><box><size>0.086 0.086 0.003</size></box></geometry>
+          <material>
+            <ambient>0.72 0.75 0.80 1.0</ambient>
+            <diffuse>0.72 0.75 0.80 1.0</diffuse>
+            <specular>0.4 0.4 0.4 1.0</specular>
+          </material>
+        </visual>
+        <visual name="front_rim">
+          <pose>0 -0.0405 0.0045 0 0 0</pose>
+          <geometry><box><size>0.086 0.005 0.012</size></box></geometry>
+          <material><ambient>0.85 0.88 0.92 1.0</ambient><diffuse>0.85 0.88 0.92 1.0</diffuse></material>
+        </visual>
+        <visual name="back_rim">
+          <pose>0 0.0405 0.0045 0 0 0</pose>
+          <geometry><box><size>0.086 0.005 0.012</size></box></geometry>
+          <material><ambient>0.85 0.88 0.92 1.0</ambient><diffuse>0.85 0.88 0.92 1.0</diffuse></material>
+        </visual>
+        <visual name="left_rim">
+          <pose>0.0405 0 0.0045 0 0 0</pose>
+          <geometry><box><size>0.005 0.076 0.012</size></box></geometry>
+          <material><ambient>0.85 0.88 0.92 1.0</ambient><diffuse>0.85 0.88 0.92 1.0</diffuse></material>
+        </visual>
+        <visual name="right_rim">
+          <pose>-0.0405 0 0.0045 0 0 0</pose>
+          <geometry><box><size>0.005 0.076 0.012</size></box></geometry>
+          <material><ambient>0.85 0.88 0.92 1.0</ambient><diffuse>0.85 0.88 0.92 1.0</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
     <!-- ======================================================== -->
     <!-- 3 KHAY ZONE DICH DEN (TARGET ZONE TRAYS - X = 0.35m)     -->
     <!-- ======================================================== -->
@@ -590,11 +667,53 @@
       </link>
     </model>
 
-    <!-- Vung Dem (Zone Temp - Mau xam sang) -->
-    <model name="zone_temp_pad">
+    <!-- ======================================================== -->
+    <!-- CAC VUNG DEM TAM THOI (TEMPORARY FREE ZONES)              -->
+    <!-- ======================================================== -->
+
+    <!-- Vung Dem 1 (Zone Temp 1) -->
+    <model name="zone_temp_1">
       <static>true</static>
-      <pose>0.18 0.20 0.001 0 0 0</pose>
-      <link name="zone_temp_link">
+      <pose>0.18 -0.22 0.001 0 0 0</pose>
+      <link name="zone_temp_1_link">
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.08 0.08 0.002</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.65 0.65 0.68 0.85</ambient>
+            <diffuse>0.65 0.65 0.68 0.85</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Vung Dem 2 (Zone Temp 2) -->
+    <model name="zone_temp_2">
+      <static>true</static>
+      <pose>0.18 0.22 0.001 0 0 0</pose>
+      <link name="zone_temp_2_link">
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.08 0.08 0.002</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.65 0.65 0.68 0.85</ambient>
+            <diffuse>0.65 0.65 0.68 0.85</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Vung Dem 3 (Zone Temp 3) -->
+    <model name="zone_temp_3">
+      <static>true</static>
+      <pose>0.18 0.00 0.001 0 0 0</pose>
+      <link name="zone_temp_3_link">
         <visual name="visual">
           <geometry>
             <box>
@@ -610,7 +729,7 @@
     </model>
 
     <!-- ======================================================== -->
-    <!-- 3 KHOI HOP VAT THE (CUBES)                               -->
+    <!-- 5 KHOI HOP VAT THE (CUBES)                               -->
     <!-- ======================================================== -->
 
     <!-- Khoi hop Do (red_cube) -->
@@ -631,6 +750,14 @@
               <size>0.04 0.04 0.04</size>
             </box>
           </geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>50.0</mu>
+                <mu2>50.0</mu2>
+              </ode>
+            </friction>
+          </surface>
         </collision>
         <visual name="visual">
           <geometry>
@@ -664,6 +791,14 @@
               <size>0.04 0.04 0.04</size>
             </box>
           </geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>50.0</mu>
+                <mu2>50.0</mu2>
+              </ode>
+            </friction>
+          </surface>
         </collision>
         <visual name="visual">
           <geometry>
@@ -697,6 +832,14 @@
               <size>0.04 0.04 0.04</size>
             </box>
           </geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>50.0</mu>
+                <mu2>50.0</mu2>
+              </ode>
+            </friction>
+          </surface>
         </collision>
         <visual name="visual">
           <geometry>
@@ -709,6 +852,126 @@
             <diffuse>0.10 0.45 0.95 1.0</diffuse>
           </material>
         </visual>
+      </link>
+    </model>
+
+    <!-- Khoi hop Xanh la (green_cube) -->
+    <model name="green_cube">
+      <pose>0.24 -0.22 0.02 0 0 0</pose>
+      <link name="link">
+        <inertial>
+          <mass>0.05</mass>
+          <inertia>
+            <ixx>0.000013</ixx>
+            <iyy>0.000013</iyy>
+            <izz>0.000013</izz>
+          </inertia>
+        </inertial>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.04 0.04 0.04</size>
+            </box>
+          </geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>50.0</mu>
+                <mu2>50.0</mu2>
+              </ode>
+            </friction>
+          </surface>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.04 0.04 0.04</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.15 0.85 0.20 1.0</ambient>
+            <diffuse>0.15 0.85 0.20 1.0</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Khoi hop Tim (purple_cube) -->
+    <model name="purple_cube">
+      <pose>0.24 0.22 0.02 0 0 0</pose>
+      <link name="link">
+        <inertial>
+          <mass>0.05</mass>
+          <inertia>
+            <ixx>0.000013</ixx>
+            <iyy>0.000013</iyy>
+            <izz>0.000013</izz>
+          </inertia>
+        </inertial>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.04 0.04 0.04</size>
+            </box>
+          </geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>50.0</mu>
+                <mu2>50.0</mu2>
+              </ode>
+            </friction>
+          </surface>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.04 0.04 0.04</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.65 0.15 0.85 1.0</ambient>
+            <diffuse>0.65 0.15 0.85 1.0</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ======================================================== -->
+    <!-- CAMERA THU THAP DU LIEU THI GIAC (RGB OVERHEAD CAMERA)   -->
+    <!-- ======================================================== -->
+    <model name="overhead_camera">
+      <static>true</static>
+      <pose>0.30 0.0 0.95 0 1.5707963 0</pose>
+      <link name="camera_link">
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.06 0.06 0.03</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.2 0.2 0.2 1.0</ambient>
+            <diffuse>0.2 0.2 0.2 1.0</diffuse>
+          </material>
+        </visual>
+        <sensor name="overhead_camera" type="camera">
+          <camera>
+            <horizontal_fov>1.15</horizontal_fov>
+            <image>
+              <width>640</width>
+              <height>480</height>
+            </image>
+            <clip>
+              <near>0.05</near>
+              <far>5.0</far>
+            </clip>
+          </camera>
+          <always_on>1</always_on>
+          <update_rate>15</update_rate>
+          <visualize>true</visualize>
+          <topic>/camera/image_raw</topic>
+        </sensor>
       </link>
     </model>
 

@@ -75,6 +75,12 @@ class SkillExecutor:
         elif skill == "close_gripper":
             obj = step.get("object")
             return f"close_gripper({obj})" if obj else "close_gripper()"
+        elif skill == "detect_objects":
+            return "detect_objects()"
+        elif skill == "check_zone":
+            return f"check_zone({step.get('zone', '')})"
+        elif skill == "find_free_position":
+            return "find_free_position()"
         return f"{skill}()"
 
     def execute_plan(self, user_command: str, plan_data: Dict[str, Any], source_info: str = "LLM", connection_alert: str = None) -> bool:
@@ -178,6 +184,22 @@ class SkillExecutor:
                     status = self.skills.open_gripper()
                 elif skill_name == "close_gripper":
                     status = self.skills.close_gripper(step.get("object"))
+                elif skill_name == "detect_objects":
+                    res = self.skills.detect_objects()
+                    self._log(f"    Phát hiện qua camera: {res}")
+                    status = "SUCCESS"
+                elif skill_name == "check_zone":
+                    zone = step.get("zone", "")
+                    occupant = self.skills.check_zone(zone)
+                    if occupant:
+                        self._log(f"    Vùng {zone}: Đang bị chiếm bởi '{occupant}'")
+                    else:
+                        self._log(f"    Vùng {zone}: Đang trống")
+                    status = "SUCCESS"
+                elif skill_name == "find_free_position":
+                    pos_name = self.skills.find_free_position()
+                    self._log(f"    Vị trí trống tìm thấy: '{pos_name}'")
+                    status = "SUCCESS"
                 else:
                     status = "INVALID_SKILL"
             except Exception as e:

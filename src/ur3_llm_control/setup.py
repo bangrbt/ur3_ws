@@ -32,6 +32,7 @@ setup(
             "llm_interactive_node = ur3_llm_control.llm_interactive_node:main",
             "scene_spawner = ur3_llm_control.scene_spawner:main",
             "user_console = ur3_llm_control.user_console:main",
+            "camera_perception = ur3_llm_control.camera_perception:main",
         ],
     },
 )

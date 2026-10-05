@@ -21,20 +21,28 @@ ALLOWED_SKILLS = {
     "reset_scene",
     "inspect_scene",
     "clear_zones",
-    "clear_zone"
+    "clear_zone",
+    "detect_objects",
+    "check_zone",
+    "find_free_position"
 }
 
 ALLOWED_OBJECTS = {
     "red_cube",
     "yellow_cube",
-    "blue_cube"
+    "blue_cube",
+    "green_cube",
+    "purple_cube"
 }
 
 ALLOWED_ZONES = {
     "zone_a",
     "zone_b",
     "zone_c",
-    "zone_temp"
+    "zone_temp",
+    "zone_temp_1",
+    "zone_temp_2",
+    "zone_temp_3"
 }
 
 
@@ -143,6 +151,14 @@ class TaskValidator:
 
             elif skill == "clear_zones":
                 # Clear all zones does not require parameters
+                pass
+
+            elif skill == "check_zone":
+                zone = step.get("zone", "")
+                if not zone or zone not in self.allowed_zones:
+                    return False, f"Buoc {idx}: check_zone can tham so 'zone' hop le! Cac vung hop le: {sorted(list(self.allowed_zones))}."
+
+            elif skill in {"detect_objects", "find_free_position"}:
                 pass
 
         return True, "Kế hoạch hợp lệ 100% theo quy chuẩn."

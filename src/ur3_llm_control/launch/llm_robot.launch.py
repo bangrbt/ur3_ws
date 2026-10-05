@@ -206,6 +206,27 @@ def generate_launch_description():
         parameters=[{"use_sim_time": True}],
     )
 
+    # 5.1 Camera Bridge: Chuyen hinh anh tu Ignition Gazebo sang ROS 2 sensor_msgs/Image
+    camera_bridge_node = Node(
+        package="ros_gz_bridge",
+        executable="parameter_bridge",
+        name="camera_bridge",
+        arguments=[
+            "/camera/image_raw@sensor_msgs/msg/Image[ignition.msgs.Image",
+            "/camera/camera_info@sensor_msgs/msg/CameraInfo[ignition.msgs.CameraInfo",
+        ],
+        output="screen",
+    )
+
+    # 5.2 Camera Perception Node (OpenCV xu ly anh nhan dien vi tri 5 vat the va trang thai cac zone)
+    camera_perception_node = Node(
+        package="ur3_llm_control",
+        executable="camera_perception",
+        name="camera_perception_node",
+        output="screen",
+        parameters=[{"use_sim_time": True}],
+    )
+
     # 6. LLM Interactive Node (Chay co do tre de cho MoveIt khoi tao xong)
     llm_node = Node(
         package="ur3_llm_control",
@@ -251,6 +272,8 @@ def generate_launch_description():
             ur_moveit_launch,
             rviz_node,
             scene_spawner_node,
+            camera_bridge_node,
+            camera_perception_node,
             delayed_llm_node,
             delayed_console,
         ]

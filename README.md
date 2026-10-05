@@ -65,6 +65,7 @@ Kho lưu trữ được tổ chức theo từng nhánh riêng biệt tương ứ
 | **`main`** | Nhánh gốc chung | Khung workspace chuẩn mực ban đầu. |
 | **`bai-tap-tuan-1`** (hoặc `tuan-1`) | **Bài tập 1** | Package `my_ur3_draw`: Vẽ chữ cái bất kỳ hoặc vẽ theo ảnh `letter.png` trên bảng đứng. |
 | **`assignments_2`** | **Bài tập 2** | Package `ur3_llm_control`: Điều khiển gắp đặt phân loại khối hộp theo MSSV bằng 100% Online LLM qua 9Router Gateway. |
+| **`assignments_3`** | **Bài tập 3** | Package `ur3_llm_control`: LLM Skill Planning với Gripper vật lý cử động thực tế, Camera RGB OpenCV nhận diện 5 khối và giải quyết xung đột vùng đích. |
 
 ---
 
@@ -82,6 +83,14 @@ Kho lưu trữ được tổ chức theo từng nhánh riêng biệt tương ứ
   - **Cá nhân hóa theo MSSV `23020723`:** Tự động tính $P = 23 \pmod 6 = 5$ (Vùng A $\to$ Blue, Vùng B $\to$ Yellow, Vùng C $\to$ Red).
   - **Tối ưu 2 lớp (Dual-layer Optimization):** Tự động bỏ qua (`SKIPPED`) các khối đã ở sẵn vị trí mục tiêu, không gắp lên thả lại thừa thãi.
   - **Khay chờ đồng nhất:** 3 khay chờ ban đầu mang màu Titanium Silver đồng bộ trên cả Gazebo và RViz.
+* **Chi tiết & Hướng dẫn chạy:** Xem tại [src/ur3_llm_control/README.md](src/ur3_llm_control/README.md).
+
+### 👁️ Bài tập 3: LLM Skill Planning với Gripper và Camera (`ur3_llm_control`)
+* **Mục tiêu:** Nâng cấp hệ thống UR3 với Gripper vật lý cử động thực tế (không teleport) và Camera RGB góc nhìn trên cao nhận diện trạng thái môi trường 5 khối hộp và 3 vùng đích bằng OpenCV trong thời gian thực.
+* **Đặc điểm nổi bật:**
+  - **Gripper cơ học vật lý:** Khớp tịnh tiến (prismatic) đóng/mở thật, phối hợp plugin DetachableJoint trong Ignition Gazebo, không dùng `set_pose` teleport.
+  - **Camera Perception Node (`camera_perception`):** Nhận diện 5 khối màu (`red_cube`, `yellow_cube`, `blue_cube`, `green_cube`, `purple_cube`) và trạng thái chiếm giữ của các vùng trong thời gian thực qua thị giác máy tính OpenCV.
+  - **Tự động giải quyết xung đột (Conflict Resolution):** Khi vùng đích bị chiếm (ví dụ Zone B đang có Blue Cube, người dùng yêu cầu "Put red cube in Zone B"), hệ thống tự động nhận biết qua camera, di chuyển vật cản ra vị trí đệm tạm (`zone_temp_1/2/3`), gắp vật theo yêu cầu vào ô đích và về Home.
 * **Chi tiết & Hướng dẫn chạy:** Xem tại [src/ur3_llm_control/README.md](src/ur3_llm_control/README.md).
 
 ---
