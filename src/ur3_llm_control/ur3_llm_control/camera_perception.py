@@ -82,7 +82,8 @@ COLOR_RANGES = {
     ],
 }
 
-MIN_CONTOUR_AREA = 300  # pixel^2 - bo qua nhieu nho
+MIN_CONTOUR_AREA = 250   # pixel^2 - bo qua nhieu nho
+MAX_CONTOUR_AREA = 2500  # pixel^2 - bo qua khay chua hoac vung lon tren mat ban
 
 
 class CameraPerceptionNode(Node):
@@ -263,10 +264,13 @@ class CameraPerceptionNode(Node):
         if not contours:
             return None
 
-        # Lay contour lon nhat
-        largest = max(contours, key=cv2.contourArea)
-        if cv2.contourArea(largest) < MIN_CONTOUR_AREA:
+        # Loc contour nam trong khoang kich thuoc khoi hop (4cm x 4cm)
+        valid_contours = [c for c in contours if MIN_CONTOUR_AREA <= cv2.contourArea(c) <= MAX_CONTOUR_AREA]
+        if not valid_contours:
             return None
+
+        # Lay contour lon nhat trong so cac contour hop le
+        largest = max(valid_contours, key=cv2.contourArea)
 
         M = cv2.moments(largest)
         if M["m00"] == 0:

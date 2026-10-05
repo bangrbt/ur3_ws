@@ -242,22 +242,22 @@
       name="ignition::gazebo::systems::JointPositionController">
       <joint_name>gripper_left_joint</joint_name>
       <topic>/gripper/left_cmd</topic>
-      <p_gain>500.0</p_gain>
-      <i_gain>1.0</i_gain>
-      <d_gain>2.0</d_gain>
-      <cmd_max>300.0</cmd_max>
-      <cmd_min>-300.0</cmd_min>
+      <p_gain>60.0</p_gain>
+      <i_gain>0.1</i_gain>
+      <d_gain>5.0</d_gain>
+      <cmd_max>25.0</cmd_max>
+      <cmd_min>-25.0</cmd_min>
     </plugin>
     <plugin
       filename="ignition-gazebo-joint-position-controller-system"
       name="ignition::gazebo::systems::JointPositionController">
       <joint_name>gripper_right_joint</joint_name>
       <topic>/gripper/right_cmd</topic>
-      <p_gain>500.0</p_gain>
-      <i_gain>1.0</i_gain>
-      <d_gain>2.0</d_gain>
-      <cmd_max>300.0</cmd_max>
-      <cmd_min>-300.0</cmd_min>
+      <p_gain>60.0</p_gain>
+      <i_gain>0.1</i_gain>
+      <d_gain>5.0</d_gain>
+      <cmd_max>25.0</cmd_max>
+      <cmd_min>-25.0</cmd_min>
     </plugin>
   </gazebo>
 </robot>

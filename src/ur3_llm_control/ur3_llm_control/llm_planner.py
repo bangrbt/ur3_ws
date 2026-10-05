@@ -107,33 +107,32 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
 - Zone occupants: {occ_str}
 
 ### ⚠️ CRITICAL EXECUTION PRINCIPLES (CONFLICT RESOLUTION & CONSTRAINTS):
-1. AUTOMATIC CONFLICT RESOLUTION (XỬ LÝ VÙNG ĐÍCH BỊ CHIẾM CHỖ):
-   - Khi người dùng yêu cầu đưa một khối vào ô đích (ví dụ "Put red_cube in zone_b"):
-     Nếu ô đích đang bị khối khác chiếm giữ (ví dụ zone_b đang có blue_cube):
-     * Robot PHẢI giải phóng ô đích trước bằng cách di chuyển vật cản sang vùng đệm tạm ("zone_temp_1", "zone_temp_2", hoặc "zone_temp_3")!
-     * Ví dụ chuỗi kế hoạch:
-       1. check_zone("zone_b")
-       2. pick("blue_cube") -> place("blue_cube", "zone_temp_1")
-       3. pick("red_cube") -> place("red_cube", "zone_b")
-       4. home()
+1. CAMERA-DRIVEN DIRECT PLANNING (KHÔNG DI CHUYỂN TAY MÁY ĐỂ KIỂM TRA THỪA):
+   - Camera trên cao liên tục thu thập trạng thái thị giác thời gian thực.
+   - Nếu ô đích TRỐNG (FREE): Robot lập tức thực hiện gắp và đặt trực tiếp:
+     pick(target_cube) -> place(target_cube, target_zone) -> home().
+     TUYỆT ĐỐI KHÔNG phát sinh bước di chuyển tay máy để kiểm tra nếu camera đã xác nhận ô trống!
 
-2. USER EXPLICIT COMMAND SUPREMACY (ƯU TIÊN TUYỆT ĐỐI CHO LỆNH TỪNG KHỐI / Ô CỤ THỂ):
-   - BẮT BUỘC tuân theo 100% đích đến người dùng yêu cầu. Không được tự ý đổi ô theo màu khối!
+2. AUTOMATIC CONFLICT RESOLUTION (CHỈ GIẢI PHÓNG KHI Ô ĐÍCH THỰC SỰ BỊ CHIẾM CHỖ):
+   - Khi người dùng yêu cầu đưa một khối vào ô đích (ví dụ "Put red_cube in zone_c"):
+     Nếu camera xác nhận ô đích đang bị khối khác chiếm giữ (ví dụ zone_c đang có blue_cube):
+     * Robot giải phóng ô đích bằng cách dời vật cản sang vùng đệm tạm ("zone_temp_1", "zone_temp_2", hoặc "zone_temp_3"):
+       1. pick("blue_cube") -> place("blue_cube", "zone_temp_1")
+       2. pick("red_cube") -> place("red_cube", "zone_c")
+       3. home()
 
-3. BỎ QUA THAO TÁC THỪA (PRESERVE CORRECT POSITIONS):
-   - Nếu khối đã ở sẵn trong ô yêu cầu, KHÔNG gắp lên thả lại.
+3. USER EXPLICIT COMMAND SUPREMACY:
+   - BẮT BUỘC tuân theo 100% đích đến người dùng yêu cầu.
 
-4. Luôn kết thúc kế hoạch bằng {{"skill": "home"}}.
+4. BỎ QUA THAO TÁC THỪA:
+   - Nếu khối đã ở sẵn trong ô yêu cầu, KHÔNG gắp lên thả lại. Luôn kết thúc bằng {{"skill": "home"}}.
 
-### OUTPUT JSON FORMAT:
+### OUTPUT JSON FORMAT (KHI Ô ĐÍCH TRỐNG):
 {{
-  "thought": "Reasoning in Vietnamese explaining camera inspection, conflict check and exact steps...",
+  "thought": "Camera xác nhận zone_c hoàn toàn trống. Robot thực hiện gắp red_cube từ khay nguồn và đặt thẳng vào zone_c.",
   "plan": [
-    {{"skill": "check_zone", "zone": "zone_b"}},
-    {{"skill": "pick", "object": "blue_cube"}},
-    {{"skill": "place", "object": "blue_cube", "zone": "zone_temp_1"}},
     {{"skill": "pick", "object": "red_cube"}},
-    {{"skill": "place", "object": "red_cube", "zone": "zone_b"}},
+    {{"skill": "place", "object": "red_cube", "zone": "zone_c"}},
     {{"skill": "home"}}
   ]
 }}
@@ -611,22 +610,23 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
                 return {"thought": thought, "plan": [{"skill": "home"}]}
 
             plan_steps = []
-            # Neu zone dich dang co vat the khac: kiem tra zone va tam thoi dua vat the do ra zone_temp_1
+            # Neu zone dich dang co vat the khac: tam thoi dua vat the do ra zone_temp
             if cur_zone_occ and cur_zone_occ != target_obj:
                 temp_dest = "zone_temp_1"
                 for z_temp in ["zone_temp_1", "zone_temp_2", "zone_temp_3"]:
                     if not zone_occs.get(z_temp):
                         temp_dest = z_temp
                         break
-                plan_steps.append({"skill": "check_zone", "zone": target_zone})
                 plan_steps.append({"skill": "pick", "object": cur_zone_occ})
                 plan_steps.append({"skill": "place", "object": cur_zone_occ, "zone": temp_dest})
+                thought = f"Camera phat hien '{target_zone}' dang bi '{cur_zone_occ}' chiem cho. Robot giai phong vat can sang '{temp_dest}', sau do gap '{target_obj}' vao '{target_zone}'."
+            else:
+                thought = f"Camera xac nhan '{target_zone}' hoan toan trong. Robot gap truc tiep '{target_obj}' va dat vao '{target_zone}' toi uu nhat."
 
             plan_steps.append({"skill": "pick", "object": target_obj})
             plan_steps.append({"skill": "place", "object": target_obj, "zone": target_zone})
             plan_steps.append({"skill": "home"})
 
-            thought = f"Tối ưu quy trình qua camera: kiểm tra và đưa '{target_obj}' vào '{target_zone}', giải tỏa chướng ngại nếu có."
             return {"thought": thought, "plan": plan_steps}
         elif target_obj and not target_zone:
             thought = f"Nguoi dung chi yeu cau gap vat '{target_obj}'."
