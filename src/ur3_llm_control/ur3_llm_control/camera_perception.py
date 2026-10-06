@@ -83,7 +83,9 @@ COLOR_RANGES = {
 }
 
 MIN_CONTOUR_AREA = 250   # pixel^2 - bo qua nhieu nho
-MAX_CONTOUR_AREA = 2500  # pixel^2 - bo qua khay chua hoac vung lon tren mat ban
+# Cube 4 cm chiem khoang 450-700 px o do cao camera hien tai. Gioi han tren
+# tach cube khoi mat khay 8.6 cm, tranh nhan khay mau thanh vat the.
+MAX_CONTOUR_AREA = 1200
 
 
 class CameraPerceptionNode(Node):

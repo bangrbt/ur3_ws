@@ -239,7 +239,9 @@ def generate_launch_description():
         parameters=[
             {
                 "use_sim_time": True,
-                "interactive": interactive,
+                # Input chi do user_console rieng gui qua /user_command. Khong
+                # tao them thread input() trong launch terminal de tranh tranh stdin.
+                "interactive": False,
                 "command": command,
             }
         ],

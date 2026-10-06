@@ -256,9 +256,11 @@ class SceneSpawner(Node):
 
         # 3. 3 Khay Zone dich den (Target Zone Trays tai X = 0.35m) theo dung MSSV
         color_lut = {
-            "red_cube": {"base": [0.95, 0.15, 0.15, 0.65], "rim": [0.98, 0.25, 0.25, 0.95]},
-            "yellow_cube": {"base": [0.98, 0.85, 0.1, 0.65], "rim": [1.0, 0.92, 0.2, 0.95]},
-            "blue_cube": {"base": [0.15, 0.45, 0.95, 0.65], "rim": [0.25, 0.55, 1.0, 0.95]},
+            # Mau pastel co do bao hoa thap: de nhin thay ro zone nhung khong
+            # roi vao nguong HSV cua cube tren camera.
+            "red_cube": {"base": [0.95, 0.70, 0.70, 0.85], "rim": [1.0, 0.78, 0.78, 1.0]},
+            "yellow_cube": {"base": [0.95, 0.90, 0.72, 0.85], "rim": [1.0, 0.95, 0.78, 1.0]},
+            "blue_cube": {"base": [0.65, 0.78, 0.95, 0.85], "rim": [0.72, 0.84, 1.0, 1.0]},
         }
 
         for name, data in self.scene_config.get("zones", {}).items():
