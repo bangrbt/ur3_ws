@@ -127,6 +127,9 @@ class RobotSkills:
         # Tham so chieu cao
         self.approach_height = float(self.motion_params.get("approach_height", 0.14))
         self.travel_height = float(self.motion_params.get("travel_height", 0.20))
+        self.transfer_clearance_height = float(
+            self.motion_params.get("transfer_clearance_height", 0.26)
+        )
         self.grasp_height = float(self.motion_params.get("grasp_height", 0.04))
         self.place_height = float(self.motion_params.get("place_height", 0.04))
         self.home_joints = list(self.motion_params.get("home_joints", [0.0, -1.3, 1.5, -1.7, -1.57, 0.0]))
@@ -468,24 +471,45 @@ class RobotSkills:
         return False
 
     def _travel_to(self, x: float, y: float) -> bool:
-        """Move directly at transfer height; use sampling planning only as fallback."""
-        pose = Pose()
-        pose.position.x = x
-        pose.position.y = y
-        pose.position.z = self.travel_height
-        pose.orientation = self.top_down_quaternion
-        # The workspace is compact and all transfers happen above the cubes.
-        # A full collision-checked Cartesian segment is shorter and preserves
-        # the current IK branch, preventing unnecessary wrist/shoulder loops.
-        if self._move_cartesian([pose]):
+        """Nang thang, di ngang o cao do an toan, giu nguyen nhanh IK."""
+        clearance = max(self.travel_height, self.transfer_clearance_height)
+        target = Pose()
+        target.position.x = x
+        target.position.y = y
+        target.position.z = clearance
+        target.orientation = self.top_down_quaternion
+
+        # Di theo hinh chu L thay vi noi suy cheo o cao do thap. Tai workspace
+        # hep cua UR3, duong cheo co the dua than gripper sat upper_arm_link va
+        # chi tao duoc mot phan Cartesian path.
+        waypoints = []
+        try:
+            tool = self.tf_buffer.lookup_transform(
+                "base_link", "tool0", rclpy.time.Time()
+            ).transform.translation
+            current_tcp_z = tool.z - 0.082
+            if current_tcp_z < clearance - 0.005:
+                raised = Pose()
+                raised.position.x = tool.x
+                raised.position.y = tool.y
+                raised.position.z = clearance
+                raised.orientation = self.top_down_quaternion
+                waypoints.append(raised)
+        except Exception:
+            pass
+        waypoints.append(target)
+
+        # Cartesian giu lien tuc cau hinh khop, tranh RRT doi nhanh IK va quay
+        # co tay khi robot dang cam cube.
+        if self._move_cartesian(waypoints):
             return True
         self.node.get_logger().warn(
-            "Cartesian transfer khong hop le; chuyen sang MoveGroup tranh va cham"
+            "Cartesian transfer o cao do an toan khong hop le; dung MoveGroup fallback"
         )
-        if self._move_to_pose_target(pose):
+        if self._move_to_pose_target(target):
             return True
         if self.holding_object is None and self.home() == "SUCCESS":
-            return self._move_cartesian([pose]) or self._move_to_pose_target(pose)
+            return self._move_cartesian([target]) or self._move_to_pose_target(target)
         return False
 
     def move_above(self, target_name: str) -> str:
@@ -1133,7 +1157,14 @@ class RobotSkills:
         self._wait_for_future(future, timeout_sec=5.0)
 
         res = future.result()
-        if not res or res.fraction < 0.995 or res.error_code.val != 1:
+        if not res:
+            self.node.get_logger().warn("MoveIt khong tra ve Cartesian path")
+            return False
+        if res.fraction < 0.995 or res.error_code.val != 1:
+            self.node.get_logger().warn(
+                f"Cartesian path chi dat {res.fraction * 100.0:.1f}% "
+                f"(MoveIt code {res.error_code.val})"
+            )
             return False
 
         traj = res.solution.joint_trajectory
