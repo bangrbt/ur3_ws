@@ -7,8 +7,6 @@
 
 ---
 
-Báo cáo kiểm thử và giải thích thiết kế: [REPORT_LAB03.md](REPORT_LAB03.md).
-
 ## 1. Tổng quan & Kiến trúc Hệ thống
 
 Bài thực hành 03 nâng cấp từ Bài 02 với các bổ sung cốt lõi:

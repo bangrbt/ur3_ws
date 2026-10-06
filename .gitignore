@@ -38,3 +38,8 @@ BaoCao_*.pdf
 BaoCao_*.zip
 *.zip
 
+# Bao cao va anh minh hoa chi giu cuc bo, khong dua len nhanh ma nguon
+/images/
+/report_lab03/
+/src/ur3_llm_control/REPORT_LAB03.md
+/src/ur3_llm_control/ur3_llm_control/*.png
