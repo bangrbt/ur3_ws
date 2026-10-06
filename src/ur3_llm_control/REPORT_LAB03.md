@@ -4,6 +4,9 @@
 **Nhánh mã nguồn:** `assignments_3`  
 **Môi trường thử:** ROS 2 Humble, MoveIt 2, Ignition Gazebo 6, UR3.
 
+**Báo cáo LaTeX đầy đủ:** `report_lab03/main.tex`; bản nộp Overleaf được đóng
+gói tại `BaoCao_BaiTap3_Overleaf.zip` ở thư mục gốc workspace.
+
 ## 1. Kiến trúc và phân quyền
 
 Người dùng ra lệnh tự nhiên → LLM tạo danh sách skill và tham số → lớp lập kế hoạch an toàn đối chiếu trạng thái camera → `TaskValidator` kiểm tra whitelist, tiền điều kiện và vùng đang bị chiếm → `SkillExecutor` gọi các skill → MoveIt 2 lập quỹ đạo và kiểm tra va chạm → UR3 và gripper thực thi trong Gazebo. LLM không sinh góc khớp hay quỹ đạo.
@@ -34,11 +37,11 @@ Camera cố định trên cao là lựa chọn phù hợp cho bài này vì mộ
 
 ## 5. Kiểm thử và giới hạn
 
-- `pytest`: kiểm tra việc dời vật cản, từ chối kế hoạch không có vị trí trống, đầu ra LLM sai kiểu, thứ tự do người dùng chỉ định và 720 cách bố trí năm cube vào sáu zone. Kết quả gần nhất: **6 passed**.
+- `pytest`: kiểm tra việc dời vật cản, từ chối kế hoạch không có vị trí trống, đầu ra LLM sai kiểu, thứ tự do người dùng chỉ định, bảo vệ ánh xạ MSSV và 720 cách bố trí năm cube vào sáu zone. Kết quả gần nhất: **13 passed**.
 - `colcon build --packages-select ur3_llm_control`: **thành công**.
 - Gazebo: đã quan sát cube được nâng và đi theo gripper; `purple_cube → zone_a` và `blue_cube → zone_b` được camera xác nhận. Ca tự động đầy đủ xử lý xung đột đã báo **TASK SUCCESS**; ảnh cuối xác nhận `blue_cube → zone_temp_3` và `red_cube → zone_b`.
-- Physics giữ ở 1 kHz để cube 4 cm ổn định khi nhả; `ros2_control` chạy 500 Hz, camera 5 Hz và MoveIt Servo không dùng đến được tắt để giảm tải. Tốc độ quan sát vẫn phụ thuộc CPU/GPU và hệ số thời gian thực của Gazebo.
-- Luồng LLM online cần `NINE_ROUTER_API_KEY` do người dùng cung cấp qua biến môi trường. Khóa cũ đã bị xóa khỏi bản mã hiện tại và cần thu hồi/đổi vì từng xuất hiện trong lịch sử Git. Gateway local trả HTTP 401 khi không có khóa, nên phép thử tích hợp online chưa hoàn tất ở môi trường này.
+- Physics và `ros2_control` chạy 500 Hz, camera 5 Hz và MoveIt Servo không dùng đến được tắt để giảm tải. Tốc độ quan sát vẫn phụ thuộc CPU/GPU và hệ số thời gian thực của Gazebo.
+- Luồng LLM online cần `NINE_ROUTER_API_KEY` do người dùng cung cấp qua biến môi trường; khóa không được lưu trong commit. Kết nối 9Router và chuỗi lập kế hoạch--thực thi đã được xác nhận hoạt động trong phiên demo.
 - Video demo cần được quay từ một lần chạy Gazebo/terminal với hai lệnh ở mục 3; file video chưa được đưa vào repository.
 
 ## 6. Cách chạy demo
