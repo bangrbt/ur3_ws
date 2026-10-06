@@ -981,8 +981,9 @@ class RobotSkills:
 
         goal_msg = MoveGroup.Goal()
         goal_msg.request.group_name = "ur_manipulator"
-        goal_msg.request.pipeline_id = "ompl"
-        goal_msg.request.planner_id = "RRTConnectkConfigDefault"
+        # De trong pipeline/planner id de MoveIt chon pipeline OMPL mac dinh.
+        # ur_moveit_config dang ky pipeline nay voi ten "move_group", vi vay
+        # ep ten "ompl" se lam tat ca request bi tu choi truoc khi planning.
         goal_msg.request.num_planning_attempts = 10
         goal_msg.request.allowed_planning_time = 8.0
         goal_msg.request.max_velocity_scaling_factor = 0.55
@@ -1025,8 +1026,7 @@ class RobotSkills:
 
         goal_msg = MoveGroup.Goal()
         goal_msg.request.group_name = "ur_manipulator"
-        goal_msg.request.pipeline_id = "ompl"
-        goal_msg.request.planner_id = "RRTConnectkConfigDefault"
+        # Dung planner mac dinh cua pipeline da duoc MoveIt nap khi khoi dong.
         goal_msg.request.num_planning_attempts = 8
         goal_msg.request.allowed_planning_time = 4.0
         goal_msg.request.max_velocity_scaling_factor = 0.55
