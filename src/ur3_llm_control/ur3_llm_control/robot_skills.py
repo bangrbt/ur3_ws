@@ -468,28 +468,24 @@ class RobotSkills:
         return False
 
     def _travel_to(self, x: float, y: float) -> bool:
-        """Plan a collision checked transfer above cubes before descending."""
+        """Move directly at transfer height; use sampling planning only as fallback."""
         pose = Pose()
         pose.position.x = x
         pose.position.y = y
         pose.position.z = self.travel_height
         pose.orientation = self.top_down_quaternion
-        try:
-            tool = self.tf_buffer.lookup_transform("base_link", "tool0", rclpy.time.Time())
-            distance = math.hypot(x - tool.transform.translation.x,
-                                  y - tool.transform.translation.y)
-        except Exception:
-            distance = float("inf")
-        # Long Cartesian paths can cross an IK branch and abruptly flip joints.
-        # Let MoveGroup route those transfers around the table and other cubes.
-        methods = ((self._move_to_pose_target, pose), (self._move_cartesian, [pose]))
-        if distance <= 0.08:
-            methods = tuple(reversed(methods))
-        for method, target in methods:
-            if method(target):
-                return True
+        # The workspace is compact and all transfers happen above the cubes.
+        # A full collision-checked Cartesian segment is shorter and preserves
+        # the current IK branch, preventing unnecessary wrist/shoulder loops.
+        if self._move_cartesian([pose]):
+            return True
+        self.node.get_logger().warn(
+            "Cartesian transfer khong hop le; chuyen sang MoveGroup tranh va cham"
+        )
+        if self._move_to_pose_target(pose):
+            return True
         if self.holding_object is None and self.home() == "SUCCESS":
-            return self._move_to_pose_target(pose)
+            return self._move_cartesian([pose]) or self._move_to_pose_target(pose)
         return False
 
     def move_above(self, target_name: str) -> str:
@@ -985,6 +981,8 @@ class RobotSkills:
 
         goal_msg = MoveGroup.Goal()
         goal_msg.request.group_name = "ur_manipulator"
+        goal_msg.request.pipeline_id = "ompl"
+        goal_msg.request.planner_id = "RRTConnectkConfigDefault"
         goal_msg.request.num_planning_attempts = 10
         goal_msg.request.allowed_planning_time = 8.0
         goal_msg.request.max_velocity_scaling_factor = 0.55
@@ -1027,6 +1025,8 @@ class RobotSkills:
 
         goal_msg = MoveGroup.Goal()
         goal_msg.request.group_name = "ur_manipulator"
+        goal_msg.request.pipeline_id = "ompl"
+        goal_msg.request.planner_id = "RRTConnectkConfigDefault"
         goal_msg.request.num_planning_attempts = 8
         goal_msg.request.allowed_planning_time = 4.0
         goal_msg.request.max_velocity_scaling_factor = 0.55
@@ -1068,9 +1068,9 @@ class RobotSkills:
         orient_constraint.header.frame_id = "base_link"
         orient_constraint.link_name = "tool0"
         orient_constraint.orientation = target_pose.orientation
-        orient_constraint.absolute_x_axis_tolerance = 0.35
-        orient_constraint.absolute_y_axis_tolerance = 0.35
-        orient_constraint.absolute_z_axis_tolerance = 0.5  # Chat che, chan quay xoay bat thuong
+        orient_constraint.absolute_x_axis_tolerance = 0.10
+        orient_constraint.absolute_y_axis_tolerance = 0.10
+        orient_constraint.absolute_z_axis_tolerance = 0.20
         orient_constraint.weight = 1.0
 
         constraints = Constraints()
@@ -1164,7 +1164,13 @@ class RobotSkills:
                     err = getattr(getattr(exec_res, "result", None), "error_code", None)
                     err_val = getattr(err, "val", 0) if err else 0
                     status = getattr(exec_res, "status", 0)
-                    return bool(err_val == 1 and status == 4)
+                    if err_val == 1 and status == 4:
+                        return True
+                    if err_val == -4 and waypoints and self._tool_reached(waypoints[-1], 2.0):
+                        self.node.get_logger().warn(
+                            "Cartesian controller bao sai so khop, nhung TCP da toi dich"
+                        )
+                        return True
         return False
 
     def sync_collision_scene(self, exclude: str = None) -> bool:
