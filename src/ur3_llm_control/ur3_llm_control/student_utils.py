@@ -7,7 +7,29 @@ P = XX mod 6 voi XX la 2 chu so cuoi cua MSSV.
 """
 
 import re
+import unicodedata
 from typing import Tuple, Dict
+
+
+def _normalize_command(text: str) -> str:
+    """Normalize Vietnamese/English commands for deterministic intent checks."""
+    normalized = unicodedata.normalize("NFKD", str(text).lower())
+    return "".join(char for char in normalized if not unicodedata.combining(char)).replace("đ", "d")
+
+
+def is_student_sorting_command(command: str) -> bool:
+    """Return True only for the personalized MSSV sorting intent.
+
+    The LLM still recognizes the natural-language request.  This small guard is
+    used after recognition so a model cannot improvise a different color/zone
+    permutation from the one prescribed by the assignment.
+    """
+    text = _normalize_command(command)
+    markers = (
+        "student id", "student number", "student code",
+        "mssv", "msv", "ma sinh vien", "ma so sinh vien", "ma sv",
+    )
+    return any(marker in text for marker in markers)
 
 
 def parse_student_info(student_id: str) -> Tuple[int, int, Dict[str, str]]:
@@ -96,3 +118,23 @@ def compute_optimal_sorting_plan(cube_locations: Dict[str, str], zone_mapping: D
                 raise ValueError("Khong con vi tri tam trong de sap xep")
             relocate(blocker, buffer_zone)
     raise ValueError("Khong the hoan thanh ke hoach sap xep")
+
+
+def sorting_plan_reaches_mapping(plan: list, cube_locations: Dict[str, str],
+                                 zone_mapping: Dict[str, str]) -> bool:
+    """Simulate placements and verify the exact MSSV target permutation."""
+    from .plan_safety import canonical_zone
+
+    locations = {
+        cube: canonical_zone(location)
+        for cube, location in (cube_locations or {}).items()
+    }
+    for step in plan or []:
+        if step.get("skill") == "place":
+            cube = step.get("object")
+            zone = canonical_zone(step.get("zone"))
+            if cube and zone:
+                locations[cube] = zone
+
+    return all(locations.get(cube) == zone
+               for zone, cube in zone_mapping.items())

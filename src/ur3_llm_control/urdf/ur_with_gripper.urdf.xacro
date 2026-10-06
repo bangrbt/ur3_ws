@@ -113,7 +113,7 @@
       <material name="industrial_orange"/>
     </visual>
     <!-- Mặt tiếp xúc va chạm ma sát cao -->
-    <collision>
+    <collision name="left_finger_pad_collision">
       <origin xyz="0 -0.005 0.022" rpy="0 0 0"/>
       <geometry>
         <box size="0.028 0.006 0.040"/>
@@ -156,7 +156,7 @@
       <material name="industrial_orange"/>
     </visual>
     <!-- Mặt tiếp xúc va chạm ma sát cao -->
-    <collision>
+    <collision name="right_finger_pad_collision">
       <origin xyz="0 0.005 0.022" rpy="0 0 0"/>
       <geometry>
         <box size="0.028 0.006 0.040"/>
@@ -194,8 +194,8 @@
       <surface>
         <friction>
           <ode>
-            <mu>2.0</mu>
-            <mu2>2.0</mu2>
+            <mu>2.5</mu>
+            <mu2>2.5</mu2>
             <slip1>0.0</slip1>
             <slip2>0.0</slip2>
           </ode>
@@ -209,6 +209,17 @@
         </contact>
       </surface>
     </collision>
+    <sensor name="left_finger_contact_sensor" type="contact">
+      <always_on>true</always_on>
+      <update_rate>100</update_rate>
+      <contact>
+        <!-- sdformat them prefix/suffix nay khi chuyen URDF collision co ten. -->
+        <collision>gripper_left_finger_fixed_joint_lump__left_finger_pad_collision_collision</collision>
+        <!-- Gazebo Fortress doc topic o BEN TRONG contact. Dat ben ngoai lam
+             sdformat sinh __default_topic__ va ROS bridge khong nhan du lieu. -->
+        <topic>/gripper/left_contacts</topic>
+      </contact>
+    </sensor>
   </gazebo>
 
   <gazebo reference="gripper_right_finger">
@@ -216,8 +227,8 @@
       <surface>
         <friction>
           <ode>
-            <mu>2.0</mu>
-            <mu2>2.0</mu2>
+            <mu>2.5</mu>
+            <mu2>2.5</mu2>
             <slip1>0.0</slip1>
             <slip2>0.0</slip2>
           </ode>
@@ -231,6 +242,14 @@
         </contact>
       </surface>
     </collision>
+    <sensor name="right_finger_contact_sensor" type="contact">
+      <always_on>true</always_on>
+      <update_rate>100</update_rate>
+      <contact>
+        <collision>gripper_right_finger_fixed_joint_lump__right_finger_pad_collision_collision</collision>
+        <topic>/gripper/right_contacts</topic>
+      </contact>
+    </sensor>
   </gazebo>
 
   <!-- ======================================================================= -->
@@ -242,9 +261,9 @@
       name="ignition::gazebo::systems::JointPositionController">
       <joint_name>gripper_left_joint</joint_name>
       <topic>/gripper/left_cmd</topic>
-      <p_gain>60.0</p_gain>
+      <p_gain>80.0</p_gain>
       <i_gain>0.1</i_gain>
-      <d_gain>5.0</d_gain>
+      <d_gain>8.0</d_gain>
       <cmd_max>25.0</cmd_max>
       <cmd_min>-25.0</cmd_min>
     </plugin>
@@ -253,9 +272,9 @@
       name="ignition::gazebo::systems::JointPositionController">
       <joint_name>gripper_right_joint</joint_name>
       <topic>/gripper/right_cmd</topic>
-      <p_gain>60.0</p_gain>
+      <p_gain>80.0</p_gain>
       <i_gain>0.1</i_gain>
-      <d_gain>5.0</d_gain>
+      <d_gain>8.0</d_gain>
       <cmd_max>25.0</cmd_max>
       <cmd_min>-25.0</cmd_min>
     </plugin>

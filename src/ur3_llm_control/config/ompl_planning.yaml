@@ -67,4 +67,6 @@ ur_manipulator:
     - PRMstarkConfigDefault
   ##Note: commenting the following line lets moveit chose RRTConnect as default planner rather than LBKPIECE
   #projection_evaluator: joints(shoulder_pan_joint,shoulder_lift_joint)
-  longest_valid_segment_fraction: 0.01
+  # Kiem tra va cham day hon de OMPL phat hien gripper/forearm contact ngay
+  # trong luc tim duong, thay vi chi phat hien sau time parameterization.
+  longest_valid_segment_fraction: 0.002

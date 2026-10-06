@@ -16,7 +16,11 @@ import requests
 import unicodedata
 from typing import Dict, Any, Tuple, List
 
-from .student_utils import parse_student_info, compute_optimal_sorting_plan
+from .student_utils import (
+    parse_student_info,
+    compute_optimal_sorting_plan,
+    is_student_sorting_command,
+)
 
 
 class LLMPlanner:
@@ -102,6 +106,17 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
 - Target Zones: "zone_a", "zone_b", "zone_c"
 - Temporary Zones: "zone_temp_1", "zone_temp_2", "zone_temp_3"
 
+### PERSONALIZED STUDENT-ID RULE (MSSV {self.student_id}):
+- Last two digits: XX={self.xx}; P=XX mod 6={self.p_value}.
+- The mandatory final mapping is exactly:
+  zone_a -> {self.zone_mapping['zone_a']}
+  zone_b -> {self.zone_mapping['zone_b']}
+  zone_c -> {self.zone_mapping['zone_c']}
+- When the user asks to arrange/sort according to their student ID, never
+  substitute another color, never rotate this mapping, and do not put green or
+  purple in target zones. They may only be moved to a free temporary zone when
+  they block a required target zone.
+
 ### REAL-TIME WORKSPACE SCENE STATE (CAMERA & SENSORS):
 {chr(10).join(state_lines)}
 - Zone occupants: {occ_str}
@@ -145,6 +160,7 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
         Bao cao ro rang che do Online API hay Offline.
         """
         user_command_clean = user_command.strip()
+        student_sorting = is_student_sorting_command(user_command_clean)
         last_error = None
 
         # 1. Thu goi 9Router API neu co api_key
@@ -158,6 +174,12 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
                 try:
                     plan_dict = self._call_9router_api(user_command_clean, target_url=test_url, scene_state=scene_state)
                     if plan_dict and "plan" in plan_dict:
+                        # The online LLM recognizes/selects the skill, while the
+                        # prescribed P permutation is enforced from config.  A
+                        # probabilistic model must never be the source of truth
+                        # for the student's fixed color/zone mapping.
+                        if student_sorting:
+                            plan_dict = self._build_student_sorting_plan(scene_state)
                         non_home = [s for s in plan_dict["plan"] if s.get("skill") != "home"]
                         if not non_home and "bỏ qua" not in plan_dict.get("thought", "").lower():
                             plan_dict["thought"] += " [Tối ưu: Tất cả các vật yêu cầu đã ở đúng vị trí mục tiêu, bỏ qua các bước gắp thả thừa.]"
@@ -190,6 +212,29 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
         )
         print(f"\n{err_msg}\n", flush=True)
         return {"thought": f"Lỗi kết nối 9Router: {last_error}", "plan": []}, "9Router Connection Error", err_msg
+
+    def _build_student_sorting_plan(self, scene_state: dict = None) -> Dict[str, Any]:
+        """Build the exact camera-aware plan for this student's P mapping."""
+        cube_locations = dict((scene_state or {}).get("cube_locations", {}))
+        if not cube_locations:
+            cube_locations = {
+                cube: "source_tray"
+                for cube in ("red_cube", "yellow_cube", "blue_cube",
+                             "green_cube", "purple_cube")
+            }
+
+        plan_steps, optimization_note = compute_optimal_sorting_plan(
+            cube_locations, self.zone_mapping
+        )
+        thought = (
+            f"Đã nhận diện yêu cầu sắp xếp theo MSSV {self.student_id}. "
+            f"XX={self.xx}, P={self.p_value}; áp dụng bắt buộc: "
+            f"Zone A -> {self.zone_mapping['zone_a']}, "
+            f"Zone B -> {self.zone_mapping['zone_b']}, "
+            f"Zone C -> {self.zone_mapping['zone_c']}. "
+            f"Kế hoạch được tính lại từ trạng thái camera. {optimization_note}"
+        )
+        return {"thought": thought, "plan": plan_steps}
 
     def _call_9router_api(self, user_command: str, target_url: str = None, scene_state: dict = None) -> Dict[str, Any]:
         """Gui HTTP Request chuan OpenAI Chat Completion toi 9Router."""
@@ -475,24 +520,8 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
             return {"thought": thought, "plan": [{"skill": "home"}]}
 
         # 4. Kiem tra cau lenh Ca nhan hoa theo MSSV (DONG HOAN TOAN THEO MA SINH VIEN BAT KY & TOI UU TOI DA)
-        if any(kw in cmd_clean for kw in [
-            "student id", "mssv", "ma sinh vien", "ma so sinh vien", 
-            "arrange all", "sap xep toan bo", "sap xep tat ca", "sap xep cac khoi", "theo ma"
-        ]):
-            cube_locs = {}
-            if scene_state:
-                cube_locs = scene_state.get("cube_locations", {})
-            if not cube_locs:
-                cube_locs = {"red_cube": "source_tray", "yellow_cube": "source_tray", "blue_cube": "source_tray"}
-
-            plan_steps, thought_opt = compute_optimal_sorting_plan(cube_locs, self.zone_mapping)
-            thought = (
-                f"Sắp xếp theo MSSV {self.student_id} (XX={self.xx} -> P={self.p_value}). "
-                f"Mục tiêu: Zone A -> {self.zone_mapping['zone_a']}, "
-                f"Zone B -> {self.zone_mapping['zone_b']}, "
-                f"Zone C -> {self.zone_mapping['zone_c']}. {thought_opt}"
-            )
-            return {"thought": thought, "plan": plan_steps}
+        if is_student_sorting_command(command):
+            return self._build_student_sorting_plan(scene_state)
 
         # Helper: Trich xuat cac khoi hop theo thu tu xuat hien trong cau lenh
         def extract_cubes_ordered(text: str) -> List[str]:
@@ -637,5 +666,4 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
             thought = f"Khong the trich xuat hanh dong ro rang tu cau lenh: '{command}'."
             plan_steps = []
         return {"thought": thought, "plan": plan_steps}
-
 

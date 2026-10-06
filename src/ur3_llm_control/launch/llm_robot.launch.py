@@ -217,6 +217,8 @@ def generate_launch_description():
             "/camera/camera_info@sensor_msgs/msg/CameraInfo[ignition.msgs.CameraInfo",
             "/gripper/left_cmd@std_msgs/msg/Float64]ignition.msgs.Double",
             "/gripper/right_cmd@std_msgs/msg/Float64]ignition.msgs.Double",
+            "/gripper/left_contacts@ros_gz_interfaces/msg/Contacts[ignition.msgs.Contacts",
+            "/gripper/right_contacts@ros_gz_interfaces/msg/Contacts[ignition.msgs.Contacts",
         ],
         output="screen",
     )

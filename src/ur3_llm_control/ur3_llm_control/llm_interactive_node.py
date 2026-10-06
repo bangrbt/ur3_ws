@@ -20,6 +20,7 @@ from .task_validator import TaskValidator
 from .plan_safety import prepare_plan, order_independent_moves
 from .robot_skills import RobotSkills
 from .skill_executor import SkillExecutor
+from .student_utils import is_student_sorting_command, sorting_plan_reaches_mapping
 
 
 class LLMInteractiveNode(Node):
@@ -170,9 +171,25 @@ class LLMInteractiveNode(Node):
             try:
                 zone_positions = {name: data["position"] for name, data in
                                   self.scene_config.get("zones", {}).items()}
-                ordered = order_independent_moves(plan_dict.get("plan", []),
-                                                  scene_state, zone_positions, command)
+                # Giu thu tu zone A -> B -> C cua quy tac MSSV.  Cac lenh gom
+                # nhieu dich doc lap khac van duoc toi uu quang duong nhu cu.
+                if is_student_sorting_command(command):
+                    ordered = plan_dict.get("plan", [])
+                else:
+                    ordered = order_independent_moves(
+                        plan_dict.get("plan", []), scene_state,
+                        zone_positions, command
+                    )
                 plan_dict["plan"] = prepare_plan(ordered, scene_state)
+                if (is_student_sorting_command(command) and
+                        not sorting_plan_reaches_mapping(
+                            plan_dict["plan"],
+                            scene_state.get("cube_locations", {}),
+                            self.planner.zone_mapping,
+                        )):
+                    raise ValueError(
+                        "Ke hoach khong dat dung anh xa MSSV; tu choi truoc khi robot chuyen dong"
+                    )
             except ValueError as exc:
                 self._send_feedback(f"[PLAN VALIDATOR] Tu choi ke hoach: {exc}")
                 return

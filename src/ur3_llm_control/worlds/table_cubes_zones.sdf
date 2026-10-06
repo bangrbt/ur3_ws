@@ -1,9 +1,9 @@
 <?xml version="1.0" ?>
 <sdf version="1.8">
   <world name="default">
-    <physics name="1ms" type="ignored">
-      <!-- 1 kHz physics keeps grasp release stable for the 4 cm cubes. -->
-      <max_step_size>0.001</max_step_size>
+    <physics name="2ms" type="ignored">
+      <!-- 500 Hz khop voi controller; 1 kHz cu lam real-time factor chi ~15%. -->
+      <max_step_size>0.002</max_step_size>
       <real_time_factor>1.0</real_time_factor>
     </physics>
 
@@ -11,6 +11,11 @@
     <plugin
       filename="ignition-gazebo-physics-system"
       name="ignition::gazebo::systems::Physics">
+    </plugin>
+    <!-- Bat buoc de contact sensor tren hai pad tao ignition.msgs.Contacts. -->
+    <plugin
+      filename="ignition-gazebo-contact-system"
+      name="gz::sim::systems::Contact">
     </plugin>
     <plugin
       filename="ignition-gazebo-user-commands-system"

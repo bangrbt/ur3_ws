@@ -64,8 +64,38 @@ camera:
 motion_params:
   home_joints: [-1.57, -1.3, 1.5, -1.7, -1.57, 0.0]
   approach_height: 0.13
-  travel_height: 0.20
-  transfer_clearance_height: 0.26
-  grasp_height: 0.035
-  place_height: 0.035
-  cartesian_speed: 0.45
+  # Hinh hoc thuc: tool0 -> tam hai pad = 10 mm mount + 68 mm TCP.
+  tcp_offset: 0.078
+  travel_height: 0.14
+  # Cube cao 40 mm, tam cube o z=20 mm. Tam pad o 29 mm lam dau pad cach
+  # mat ban 9 mm (cach mat khay hien thi 6 mm), van om 31 mm than cube.
+  cube_rest_height: 0.020
+  grasp_height: 0.029
+  place_height: 0.029
+  reach_tolerance: 0.006
+
+  # Profile toc do: nhanh tren khong, vua khi mang vat, cham tai vung tiep xuc.
+  cartesian_speed: 0.65
+  cartesian_acceleration: 0.45
+  carry_vel_scale: 0.45
+  carry_acc_scale: 0.30
+  approach_speed: 0.18
+  approach_acceleration: 0.12
+  lift_speed: 0.35
+  lift_acceleration: 0.25
+
+  # Hai pad cach nhau 40 mm tai q=8 mm; q=7 mm tao do nen 1 mm moi ben.
+  grip_open_pos: 0.018
+  grip_close_pos: 0.007
+  # Sau khi xac nhan/attach, duy tri khe lenh 36 mm cho cube 40 mm:
+  # controller tao preload 2 mm moi ben va giu lien tuc trong luc nhac/chuyen.
+  grip_hold_pos: 0.0060
+  grasp_xy_tolerance: 0.006
+  grasp_z_tolerance: 0.004
+  require_bilateral_contact: true
+  use_gazebo_attach: true
+  # 98% tranh loai bo duong hop le vi sai so noi suy diem cuoi rat nho;
+  # _tool_reached van kiem tra TCP thuc te truoc khi kep/nha vat.
+  cartesian_fraction: 0.98
+  cartesian_avoid_collisions: true
+  max_joint_travel: 2.0

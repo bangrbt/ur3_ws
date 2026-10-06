@@ -12,7 +12,7 @@ Báo cáo kiểm thử và giải thích thiết kế: [REPORT_LAB03.md](REPORT_
 ## 1. Tổng quan & Kiến trúc Hệ thống
 
 Bài thực hành 03 nâng cấp từ Bài 02 với các bổ sung cốt lõi:
-1. **Gripper vật lý cử động thực tế:** Tay kẹp 2 ngón dùng khớp trượt và `JointPositionController`. Khi hai ngón bao quanh cube, hệ thống tạo `DetachableJoint` trong Gazebo để giữ vật. Khi đặt, robot chờ vật ổn định trên bàn, tháo joint rồi mở ngón từ từ để tránh đẩy văng cube. PlanningScene của MoveIt được cập nhật riêng; các skill gắp/đặt không dùng `set_pose`.
+1. **Gripper vật lý cử động thực tế:** Tay kẹp 2 ngón dùng khớp trượt và `JointPositionController`. Hai contact sensor phải cùng xác nhận đang chạm đúng cube rồi hệ thống mới tạo `DetachableJoint` trong Gazebo để ổn định vật khi mang. Khi đặt, robot tháo joint rồi mở ngón từ từ để vật tự nằm xuống bằng vật lý. PlanningScene của MoveIt được cập nhật riêng; các skill gắp/đặt không dùng `set_pose`.
 2. **Camera RGB & Node Thị giác máy tính (`camera_perception`):** Camera góc nhìn từ trên xuống (overhead camera), dùng OpenCV HSV Color Segmentation và mô hình Pinhole Camera ngược để phát hiện tọa độ thế giới của toàn bộ 5 khối hộp và trạng thái chiếm giữ của các vùng trong thời gian thực.
 3. **Môi trường 5 Khối & 3 Vùng đích + Vùng đệm tạm:**
    - 5 khối: `red_cube`, `yellow_cube`, `blue_cube`, `green_cube`, `purple_cube`.

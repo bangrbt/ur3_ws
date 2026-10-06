@@ -3,7 +3,13 @@ from itertools import permutations
 import pytest
 
 from ur3_llm_control.plan_safety import prepare_plan, order_independent_moves
-from ur3_llm_control.student_utils import compute_optimal_sorting_plan
+from ur3_llm_control.llm_planner import LLMPlanner
+from ur3_llm_control.student_utils import (
+    compute_optimal_sorting_plan,
+    is_student_sorting_command,
+    parse_student_info,
+    sorting_plan_reaches_mapping,
+)
 from ur3_llm_control.task_validator import TaskValidator
 
 
@@ -69,6 +75,87 @@ def test_student_sorting_all_five_cube_placements():
             if plan[index]["skill"] == "pick":
                 end[plan[index]["object"]] = plan[index + 1]["zone"]
         assert all(end[cube] == zone for zone, cube in MAPPING.items())
+
+
+@pytest.mark.parametrize("command", [
+    "Arrange all objects according to my student ID.",
+    "Hãy sắp xếp các khối theo mã sinh viên của tôi.",
+    "Sap xep theo MSSV",
+    "xếp theo MSV",
+])
+def test_student_sorting_intent_variants(command):
+    assert is_student_sorting_command(command)
+
+
+def test_student_sorting_plan_uses_exact_p5_mapping_with_blockers():
+    _, p_value, mapping = parse_student_info("23020723")
+    assert p_value == 5
+    assert mapping == MAPPING
+    locations = {
+        "red_cube": "zone_a",
+        "yellow_cube": "zone_c",
+        "blue_cube": "zone_temp_1",
+        "green_cube": "zone_b",
+        "purple_cube": "zone_temp_2",
+    }
+    plan, _ = compute_optimal_sorting_plan(locations, mapping)
+    assert sorting_plan_reaches_mapping(plan, locations, mapping)
+    final_target_places = {
+        step["zone"]: step["object"]
+        for step in plan
+        if step.get("skill") == "place" and step.get("zone") in MAPPING
+    }
+    assert final_target_places == MAPPING
+
+
+def test_student_sorting_guard_rejects_mixed_mapping():
+    locations = {cube: "source_tray" for cube in CUBES}
+    wrong = [
+        {"skill": "pick", "object": "red_cube"},
+        {"skill": "place", "object": "red_cube", "zone": "zone_a"},
+        {"skill": "pick", "object": "blue_cube"},
+        {"skill": "place", "object": "blue_cube", "zone": "zone_b"},
+        {"skill": "pick", "object": "yellow_cube"},
+        {"skill": "place", "object": "yellow_cube", "zone": "zone_c"},
+        {"skill": "home"},
+    ]
+    assert not sorting_plan_reaches_mapping(wrong, locations, MAPPING)
+
+
+def test_online_llm_student_plan_is_replaced_by_exact_mapping():
+    planner = object.__new__(LLMPlanner)
+    planner.api_key = "test-only"
+    planner.base_url = "http://localhost:20128/v1"
+    planner.model = "test-model"
+    planner.fallback_enabled = False
+    planner.student_id = "23020723"
+    planner.xx = 23
+    planner.p_value = 5
+    planner.zone_mapping = MAPPING
+    wrong_llm_plan = {
+        "thought": "wrong model permutation",
+        "plan": [
+            {"skill": "pick", "object": "red_cube"},
+            {"skill": "place", "object": "red_cube", "zone": "zone_a"},
+            {"skill": "home"},
+        ],
+    }
+    planner._call_9router_api = lambda *args, **kwargs: wrong_llm_plan
+    locations = {cube: "source_tray" for cube in CUBES}
+
+    result, source, _ = planner.plan(
+        "Arrange all objects according to my student ID.",
+        scene_state=scene(locations),
+    )
+
+    assert source.startswith("ONLINE LLM")
+    assert sorting_plan_reaches_mapping(result["plan"], locations, MAPPING)
+    assert [(step.get("object"), step.get("zone")) for step in result["plan"]
+            if step.get("skill") == "place"] == [
+        ("blue_cube", "zone_a"),
+        ("yellow_cube", "zone_b"),
+        ("red_cube", "zone_c"),
+    ]
 
 
 def test_route_order_respects_explicit_sequence():
