@@ -4,7 +4,7 @@
 base_url: "http://localhost:20128/v1"
 
 # API Key cua 9Router (neu de trong, he thong se doc tu bien moi truong NINE_ROUTER_API_KEY hoac OPENAI_API_KEY)
-api_key: "sk-4e6f373b240d5083-b803ys-53876dfb"
+api_key: ""
 
 # Model LLM duoc khuyen nghi qua 9Router: gemini/gemini-3.5-flash-lite
 model: "gemini/gemini-3.5-flash-lite"
@@ -17,4 +17,3 @@ max_tokens: 800
 # Chay 100% ONLINE LLM goi truc tiep qua 9Router Gateway.
 # Chuc nang Offline CHI duoc phep bat khi nguoi dung chu dong doi gia tri nay thanh true.
 fallback_to_smart_planner: false
-

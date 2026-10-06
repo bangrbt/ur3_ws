@@ -17,6 +17,7 @@ from std_msgs.msg import String
 
 from .llm_planner import LLMPlanner
 from .task_validator import TaskValidator
+from .plan_safety import prepare_plan, order_independent_moves
 from .robot_skills import RobotSkills
 from .skill_executor import SkillExecutor
 
@@ -147,14 +148,41 @@ class LLMInteractiveNode(Node):
 
             # 1. LLM Task Planner sinh ke hoach co cau truc (toi uu dua tren vi tri thuc te cua cac khoi)
             scene_state = self.skills.get_scene_state()
+            if not scene_state.get("camera_ready"):
+                self._send_feedback("[CAMERA] Chua nhan du 5 block tu anh moi. Dua tay ve ngoai tam nhin va thu lai.")
+                return
+            if not self.skills.sync_collision_scene():
+                self._send_feedback("[MOVEIT] Khong dong bo duoc collision scene.")
+                return
             plan_dict, source_info, conn_status = self.planner.plan(command, scene_state=scene_state)
+            if not isinstance(plan_dict, dict) or not isinstance(plan_dict.get("plan"), list):
+                self._send_feedback("[PLAN VALIDATOR] Ke hoach LLM khong phai danh sach skill hop le.")
+                return
+            if any(not isinstance(step, dict) for step in plan_dict["plan"]):
+                self._send_feedback("[PLAN VALIDATOR] Moi buoc trong ke hoach phai la object.")
+                return
+            for step in plan_dict["plan"]:
+                if (not isinstance(step.get("skill"), str) or
+                        any(not isinstance(step[key], str)
+                            for key in ("object", "zone") if key in step and step[key] is not None)):
+                    self._send_feedback("[PLAN VALIDATOR] Ten skill, object va zone phai la chuoi.")
+                    return
+            try:
+                zone_positions = {name: data["position"] for name, data in
+                                  self.scene_config.get("zones", {}).items()}
+                ordered = order_independent_moves(plan_dict.get("plan", []),
+                                                  scene_state, zone_positions, command)
+                plan_dict["plan"] = prepare_plan(ordered, scene_state)
+            except ValueError as exc:
+                self._send_feedback(f"[PLAN VALIDATOR] Tu choi ke hoach: {exc}")
+                return
 
             # Phat tin hieu ket noi API / canh bao mat ket noi toi Console nguoi dung
             self._send_feedback(f"\n{conn_status}\n")
 
             # 2. Plan Validator kiem tra tinh hop le
             current_holding = self.skills.holding_object
-            is_valid, validation_msg = self.validator.validate_plan(plan_dict, initial_holding=current_holding)
+            is_valid, validation_msg = self.validator.validate_plan(plan_dict, initial_holding=current_holding, scene_state=scene_state)
 
             if not is_valid:
                 err_msg = (

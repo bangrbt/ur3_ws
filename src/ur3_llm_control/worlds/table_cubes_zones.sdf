@@ -2,6 +2,7 @@
 <sdf version="1.8">
   <world name="default">
     <physics name="1ms" type="ignored">
+      <!-- 1 kHz physics keeps grasp release stable for the 4 cm cubes. -->
       <max_step_size>0.001</max_step_size>
       <real_time_factor>1.0</real_time_factor>
     </physics>
@@ -192,10 +193,10 @@
           </material>
         </visual>
         <visual name="front_rim">
-          <pose>0 -0.0405 0.0045 0 0 0</pose>
+          <pose>0 -0.0405 0.0015 0 0 0</pose>
           <geometry>
             <box>
-              <size>0.086 0.005 0.012</size>
+              <size>0.086 0.005 0.003</size>
             </box>
           </geometry>
           <material>
@@ -205,10 +206,10 @@
           </material>
         </visual>
         <visual name="back_rim">
-          <pose>0 0.0405 0.0045 0 0 0</pose>
+          <pose>0 0.0405 0.0015 0 0 0</pose>
           <geometry>
             <box>
-              <size>0.086 0.005 0.012</size>
+              <size>0.086 0.005 0.003</size>
             </box>
           </geometry>
           <material>
@@ -218,10 +219,10 @@
           </material>
         </visual>
         <visual name="left_rim">
-          <pose>0.0405 0 0.0045 0 0 0</pose>
+          <pose>0.0405 0 0.0015 0 0 0</pose>
           <geometry>
             <box>
-              <size>0.005 0.076 0.012</size>
+              <size>0.005 0.076 0.003</size>
             </box>
           </geometry>
           <material>
@@ -231,10 +232,10 @@
           </material>
         </visual>
         <visual name="right_rim">
-          <pose>-0.0405 0 0.0045 0 0 0</pose>
+          <pose>-0.0405 0 0.0015 0 0 0</pose>
           <geometry>
             <box>
-              <size>0.005 0.076 0.012</size>
+              <size>0.005 0.076 0.003</size>
             </box>
           </geometry>
           <material>
@@ -264,10 +265,10 @@
           </material>
         </visual>
         <visual name="front_rim">
-          <pose>0 -0.0405 0.0045 0 0 0</pose>
+          <pose>0 -0.0405 0.0015 0 0 0</pose>
           <geometry>
             <box>
-              <size>0.086 0.005 0.012</size>
+              <size>0.086 0.005 0.003</size>
             </box>
           </geometry>
           <material>
@@ -277,10 +278,10 @@
           </material>
         </visual>
         <visual name="back_rim">
-          <pose>0 0.0405 0.0045 0 0 0</pose>
+          <pose>0 0.0405 0.0015 0 0 0</pose>
           <geometry>
             <box>
-              <size>0.086 0.005 0.012</size>
+              <size>0.086 0.005 0.003</size>
             </box>
           </geometry>
           <material>
@@ -290,10 +291,10 @@
           </material>
         </visual>
         <visual name="left_rim">
-          <pose>0.0405 0 0.0045 0 0 0</pose>
+          <pose>0.0405 0 0.0015 0 0 0</pose>
           <geometry>
             <box>
-              <size>0.005 0.076 0.012</size>
+              <size>0.005 0.076 0.003</size>
             </box>
           </geometry>
           <material>
@@ -303,10 +304,10 @@
           </material>
         </visual>
         <visual name="right_rim">
-          <pose>-0.0405 0 0.0045 0 0 0</pose>
+          <pose>-0.0405 0 0.0015 0 0 0</pose>
           <geometry>
             <box>
-              <size>0.005 0.076 0.012</size>
+              <size>0.005 0.076 0.003</size>
             </box>
           </geometry>
           <material>
@@ -336,10 +337,10 @@
           </material>
         </visual>
         <visual name="front_rim">
-          <pose>0 -0.0405 0.0045 0 0 0</pose>
+          <pose>0 -0.0405 0.0015 0 0 0</pose>
           <geometry>
             <box>
-              <size>0.086 0.005 0.012</size>
+              <size>0.086 0.005 0.003</size>
             </box>
           </geometry>
           <material>
@@ -349,10 +350,10 @@
           </material>
         </visual>
         <visual name="back_rim">
-          <pose>0 0.0405 0.0045 0 0 0</pose>
+          <pose>0 0.0405 0.0015 0 0 0</pose>
           <geometry>
             <box>
-              <size>0.086 0.005 0.012</size>
+              <size>0.086 0.005 0.003</size>
             </box>
           </geometry>
           <material>
@@ -362,10 +363,10 @@
           </material>
         </visual>
         <visual name="left_rim">
-          <pose>0.0405 0 0.0045 0 0 0</pose>
+          <pose>0.0405 0 0.0015 0 0 0</pose>
           <geometry>
             <box>
-              <size>0.005 0.076 0.012</size>
+              <size>0.005 0.076 0.003</size>
             </box>
           </geometry>
           <material>
@@ -375,10 +376,10 @@
           </material>
         </visual>
         <visual name="right_rim">
-          <pose>-0.0405 0 0.0045 0 0 0</pose>
+          <pose>-0.0405 0 0.0015 0 0 0</pose>
           <geometry>
             <box>
-              <size>0.005 0.076 0.012</size>
+              <size>0.005 0.076 0.003</size>
             </box>
           </geometry>
           <material>
@@ -404,23 +405,23 @@
           </material>
         </visual>
         <visual name="front_rim">
-          <pose>0 -0.0405 0.0045 0 0 0</pose>
-          <geometry><box><size>0.086 0.005 0.012</size></box></geometry>
+          <pose>0 -0.0405 0.0015 0 0 0</pose>
+          <geometry><box><size>0.086 0.005 0.003</size></box></geometry>
           <material><ambient>0.85 0.88 0.92 1.0</ambient><diffuse>0.85 0.88 0.92 1.0</diffuse></material>
         </visual>
         <visual name="back_rim">
-          <pose>0 0.0405 0.0045 0 0 0</pose>
-          <geometry><box><size>0.086 0.005 0.012</size></box></geometry>
+          <pose>0 0.0405 0.0015 0 0 0</pose>
+          <geometry><box><size>0.086 0.005 0.003</size></box></geometry>
           <material><ambient>0.85 0.88 0.92 1.0</ambient><diffuse>0.85 0.88 0.92 1.0</diffuse></material>
         </visual>
         <visual name="left_rim">
-          <pose>0.0405 0 0.0045 0 0 0</pose>
-          <geometry><box><size>0.005 0.076 0.012</size></box></geometry>
+          <pose>0.0405 0 0.0015 0 0 0</pose>
+          <geometry><box><size>0.005 0.076 0.003</size></box></geometry>
           <material><ambient>0.85 0.88 0.92 1.0</ambient><diffuse>0.85 0.88 0.92 1.0</diffuse></material>
         </visual>
         <visual name="right_rim">
-          <pose>-0.0405 0 0.0045 0 0 0</pose>
-          <geometry><box><size>0.005 0.076 0.012</size></box></geometry>
+          <pose>-0.0405 0 0.0015 0 0 0</pose>
+          <geometry><box><size>0.005 0.076 0.003</size></box></geometry>
           <material><ambient>0.85 0.88 0.92 1.0</ambient><diffuse>0.85 0.88 0.92 1.0</diffuse></material>
         </visual>
       </link>
@@ -440,23 +441,23 @@
           </material>
         </visual>
         <visual name="front_rim">
-          <pose>0 -0.0405 0.0045 0 0 0</pose>
-          <geometry><box><size>0.086 0.005 0.012</size></box></geometry>
+          <pose>0 -0.0405 0.0015 0 0 0</pose>
+          <geometry><box><size>0.086 0.005 0.003</size></box></geometry>
           <material><ambient>0.85 0.88 0.92 1.0</ambient><diffuse>0.85 0.88 0.92 1.0</diffuse></material>
         </visual>
         <visual name="back_rim">
-          <pose>0 0.0405 0.0045 0 0 0</pose>
-          <geometry><box><size>0.086 0.005 0.012</size></box></geometry>
+          <pose>0 0.0405 0.0015 0 0 0</pose>
+          <geometry><box><size>0.086 0.005 0.003</size></box></geometry>
           <material><ambient>0.85 0.88 0.92 1.0</ambient><diffuse>0.85 0.88 0.92 1.0</diffuse></material>
         </visual>
         <visual name="left_rim">
-          <pose>0.0405 0 0.0045 0 0 0</pose>
-          <geometry><box><size>0.005 0.076 0.012</size></box></geometry>
+          <pose>0.0405 0 0.0015 0 0 0</pose>
+          <geometry><box><size>0.005 0.076 0.003</size></box></geometry>
           <material><ambient>0.85 0.88 0.92 1.0</ambient><diffuse>0.85 0.88 0.92 1.0</diffuse></material>
         </visual>
         <visual name="right_rim">
-          <pose>-0.0405 0 0.0045 0 0 0</pose>
-          <geometry><box><size>0.005 0.076 0.012</size></box></geometry>
+          <pose>-0.0405 0 0.0015 0 0 0</pose>
+          <geometry><box><size>0.005 0.076 0.003</size></box></geometry>
           <material><ambient>0.85 0.88 0.92 1.0</ambient><diffuse>0.85 0.88 0.92 1.0</diffuse></material>
         </visual>
       </link>
@@ -483,23 +484,23 @@
           </material>
         </visual>
         <visual name="front_rim">
-          <pose>0 -0.0405 0.0045 0 0 0</pose>
-          <geometry><box><size>0.086 0.005 0.012</size></box></geometry>
+          <pose>0 -0.0405 0.0015 0 0 0</pose>
+          <geometry><box><size>0.086 0.005 0.003</size></box></geometry>
           <material><ambient>0.50 0.52 0.55 1.0</ambient><diffuse>0.50 0.52 0.55 1.0</diffuse></material>
         </visual>
         <visual name="back_rim">
-          <pose>0 0.0405 0.0045 0 0 0</pose>
-          <geometry><box><size>0.086 0.005 0.012</size></box></geometry>
+          <pose>0 0.0405 0.0015 0 0 0</pose>
+          <geometry><box><size>0.086 0.005 0.003</size></box></geometry>
           <material><ambient>0.50 0.52 0.55 1.0</ambient><diffuse>0.50 0.52 0.55 1.0</diffuse></material>
         </visual>
         <visual name="left_rim">
-          <pose>0.0405 0 0.0045 0 0 0</pose>
-          <geometry><box><size>0.005 0.076 0.012</size></box></geometry>
+          <pose>0.0405 0 0.0015 0 0 0</pose>
+          <geometry><box><size>0.005 0.076 0.003</size></box></geometry>
           <material><ambient>0.50 0.52 0.55 1.0</ambient><diffuse>0.50 0.52 0.55 1.0</diffuse></material>
         </visual>
         <visual name="right_rim">
-          <pose>-0.0405 0 0.0045 0 0 0</pose>
-          <geometry><box><size>0.005 0.076 0.012</size></box></geometry>
+          <pose>-0.0405 0 0.0015 0 0 0</pose>
+          <geometry><box><size>0.005 0.076 0.003</size></box></geometry>
           <material><ambient>0.50 0.52 0.55 1.0</ambient><diffuse>0.50 0.52 0.55 1.0</diffuse></material>
         </visual>
       </link>
@@ -522,23 +523,23 @@
           </material>
         </visual>
         <visual name="front_rim">
-          <pose>0 -0.0405 0.0045 0 0 0</pose>
-          <geometry><box><size>0.086 0.005 0.012</size></box></geometry>
+          <pose>0 -0.0405 0.0015 0 0 0</pose>
+          <geometry><box><size>0.086 0.005 0.003</size></box></geometry>
           <material><ambient>0.50 0.52 0.55 1.0</ambient><diffuse>0.50 0.52 0.55 1.0</diffuse></material>
         </visual>
         <visual name="back_rim">
-          <pose>0 0.0405 0.0045 0 0 0</pose>
-          <geometry><box><size>0.086 0.005 0.012</size></box></geometry>
+          <pose>0 0.0405 0.0015 0 0 0</pose>
+          <geometry><box><size>0.086 0.005 0.003</size></box></geometry>
           <material><ambient>0.50 0.52 0.55 1.0</ambient><diffuse>0.50 0.52 0.55 1.0</diffuse></material>
         </visual>
         <visual name="left_rim">
-          <pose>0.0405 0 0.0045 0 0 0</pose>
-          <geometry><box><size>0.005 0.076 0.012</size></box></geometry>
+          <pose>0.0405 0 0.0015 0 0 0</pose>
+          <geometry><box><size>0.005 0.076 0.003</size></box></geometry>
           <material><ambient>0.50 0.52 0.55 1.0</ambient><diffuse>0.50 0.52 0.55 1.0</diffuse></material>
         </visual>
         <visual name="right_rim">
-          <pose>-0.0405 0 0.0045 0 0 0</pose>
-          <geometry><box><size>0.005 0.076 0.012</size></box></geometry>
+          <pose>-0.0405 0 0.0015 0 0 0</pose>
+          <geometry><box><size>0.005 0.076 0.003</size></box></geometry>
           <material><ambient>0.50 0.52 0.55 1.0</ambient><diffuse>0.50 0.52 0.55 1.0</diffuse></material>
         </visual>
       </link>
@@ -561,23 +562,23 @@
           </material>
         </visual>
         <visual name="front_rim">
-          <pose>0 -0.0405 0.0045 0 0 0</pose>
-          <geometry><box><size>0.086 0.005 0.012</size></box></geometry>
+          <pose>0 -0.0405 0.0015 0 0 0</pose>
+          <geometry><box><size>0.086 0.005 0.003</size></box></geometry>
           <material><ambient>0.50 0.52 0.55 1.0</ambient><diffuse>0.50 0.52 0.55 1.0</diffuse></material>
         </visual>
         <visual name="back_rim">
-          <pose>0 0.0405 0.0045 0 0 0</pose>
-          <geometry><box><size>0.086 0.005 0.012</size></box></geometry>
+          <pose>0 0.0405 0.0015 0 0 0</pose>
+          <geometry><box><size>0.086 0.005 0.003</size></box></geometry>
           <material><ambient>0.50 0.52 0.55 1.0</ambient><diffuse>0.50 0.52 0.55 1.0</diffuse></material>
         </visual>
         <visual name="left_rim">
-          <pose>0.0405 0 0.0045 0 0 0</pose>
-          <geometry><box><size>0.005 0.076 0.012</size></box></geometry>
+          <pose>0.0405 0 0.0015 0 0 0</pose>
+          <geometry><box><size>0.005 0.076 0.003</size></box></geometry>
           <material><ambient>0.50 0.52 0.55 1.0</ambient><diffuse>0.50 0.52 0.55 1.0</diffuse></material>
         </visual>
         <visual name="right_rim">
-          <pose>-0.0405 0 0.0045 0 0 0</pose>
-          <geometry><box><size>0.005 0.076 0.012</size></box></geometry>
+          <pose>-0.0405 0 0.0015 0 0 0</pose>
+          <geometry><box><size>0.005 0.076 0.003</size></box></geometry>
           <material><ambient>0.50 0.52 0.55 1.0</ambient><diffuse>0.50 0.52 0.55 1.0</diffuse></material>
         </visual>
       </link>
@@ -590,7 +591,7 @@
     <!-- Vung Dem 1 (Zone Temp 1) -->
     <model name="zone_temp_1">
       <static>true</static>
-      <pose>0.18 -0.22 0.001 0 0 0</pose>
+      <pose>0.35 -0.22 0.001 0 0 0</pose>
       <link name="zone_temp_1_link">
         <visual name="visual">
           <geometry>
@@ -609,7 +610,7 @@
     <!-- Vung Dem 2 (Zone Temp 2) -->
     <model name="zone_temp_2">
       <static>true</static>
-      <pose>0.18 0.22 0.001 0 0 0</pose>
+      <pose>0.35 0.22 0.001 0 0 0</pose>
       <link name="zone_temp_2_link">
         <visual name="visual">
           <geometry>
@@ -628,7 +629,7 @@
     <!-- Vung Dem 3 (Zone Temp 3) -->
     <model name="zone_temp_3">
       <static>true</static>
-      <pose>0.18 0.00 0.001 0 0 0</pose>
+      <pose>0.45 0.00 0.001 0 0 0</pose>
       <link name="zone_temp_3_link">
         <visual name="visual">
           <geometry>
@@ -669,15 +670,15 @@
           <surface>
             <friction>
               <ode>
-                <mu>100.0</mu>
-                <mu2>100.0</mu2>
+                <mu>2.0</mu>
+                <mu2>2.0</mu2>
               </ode>
             </friction>
             <contact>
               <ode>
                 <kp>100000.0</kp>
                 <kd>1000.0</kd>
-                <min_depth>0.002</min_depth>
+                <min_depth>0.0005</min_depth>
               </ode>
             </contact>
             <bounce>
@@ -721,15 +722,15 @@
           <surface>
             <friction>
               <ode>
-                <mu>100.0</mu>
-                <mu2>100.0</mu2>
+                <mu>2.0</mu>
+                <mu2>2.0</mu2>
               </ode>
             </friction>
             <contact>
               <ode>
                 <kp>100000.0</kp>
                 <kd>1000.0</kd>
-                <min_depth>0.002</min_depth>
+                <min_depth>0.0005</min_depth>
               </ode>
             </contact>
             <bounce>
@@ -773,15 +774,15 @@
           <surface>
             <friction>
               <ode>
-                <mu>100.0</mu>
-                <mu2>100.0</mu2>
+                <mu>2.0</mu>
+                <mu2>2.0</mu2>
               </ode>
             </friction>
             <contact>
               <ode>
                 <kp>100000.0</kp>
                 <kd>1000.0</kd>
-                <min_depth>0.002</min_depth>
+                <min_depth>0.0005</min_depth>
               </ode>
             </contact>
             <bounce>
@@ -825,15 +826,15 @@
           <surface>
             <friction>
               <ode>
-                <mu>100.0</mu>
-                <mu2>100.0</mu2>
+                <mu>2.0</mu>
+                <mu2>2.0</mu2>
               </ode>
             </friction>
             <contact>
               <ode>
                 <kp>100000.0</kp>
                 <kd>1000.0</kd>
-                <min_depth>0.002</min_depth>
+                <min_depth>0.0005</min_depth>
               </ode>
             </contact>
             <bounce>
@@ -877,15 +878,15 @@
           <surface>
             <friction>
               <ode>
-                <mu>100.0</mu>
-                <mu2>100.0</mu2>
+                <mu>2.0</mu>
+                <mu2>2.0</mu2>
               </ode>
             </friction>
             <contact>
               <ode>
                 <kp>100000.0</kp>
                 <kd>1000.0</kd>
-                <min_depth>0.002</min_depth>
+                <min_depth>0.0005</min_depth>
               </ode>
             </contact>
             <bounce>
@@ -960,7 +961,7 @@
             </clip>
           </camera>
           <always_on>1</always_on>
-          <update_rate>15</update_rate>
+          <update_rate>5</update_rate>
           <visualize>true</visualize>
           <topic>/camera/image_raw</topic>
         </sensor>

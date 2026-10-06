@@ -3,11 +3,18 @@
 <package format="3">
   <name>ur3_llm_control</name>
   <version>1.0.0</version>
-  <description>Package dieu khien robot UR3/UR3e bang LLM va Skill-based Planning (Bai thuc hanh 2)</description>
+  <description>Package dieu khien robot UR3/UR3e bang LLM va Skill-based Planning (Bai thuc hanh 3)</description>
   <maintainer email="23020723@vnu.edu.vn">Le Anh Tuan Bang</maintainer>
   <license>Apache-2.0</license>
 
   <depend>rclpy</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>std_srvs</depend>
+  <exec_depend>cv_bridge</exec_depend>
+  <exec_depend>python3-opencv</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
+  <exec_depend>python3-requests</exec_depend>
   <depend>geometry_msgs</depend>
   <depend>shape_msgs</depend>
   <depend>moveit_msgs</depend>

@@ -116,7 +116,7 @@
     <collision>
       <origin xyz="0 -0.005 0.022" rpy="0 0 0"/>
       <geometry>
-        <box size="0.022 0.006 0.040"/>
+        <box size="0.028 0.006 0.040"/>
       </geometry>
     </collision>
     <inertial>
@@ -159,7 +159,7 @@
     <collision>
       <origin xyz="0 0.005 0.022" rpy="0 0 0"/>
       <geometry>
-        <box size="0.022 0.006 0.040"/>
+        <box size="0.028 0.006 0.040"/>
       </geometry>
     </collision>
     <inertial>
@@ -187,24 +187,24 @@
   </joint>
 
   <!-- ======================================================================= -->
-  <!-- GAZEBO SURFACE FRICTION: MA SÁT TIẾP XÚC CỰC LỚN ĐỂ GẮP VẬT THẬT         -->
+  <!-- GAZEBO SURFACE FRICTION: MA SÁT ĐỆM SILICONE VỪA PHẢI, TRÁNH TÍCH LỰC KHI NHẢ         -->
   <!-- ======================================================================= -->
   <gazebo reference="gripper_left_finger">
     <collision>
       <surface>
         <friction>
           <ode>
-            <mu>100.0</mu>
-            <mu2>100.0</mu2>
+            <mu>2.0</mu>
+            <mu2>2.0</mu2>
             <slip1>0.0</slip1>
             <slip2>0.0</slip2>
           </ode>
         </friction>
         <contact>
           <ode>
-            <kp>1000000.0</kp>
+            <kp>100000.0</kp>
             <kd>100.0</kd>
-            <min_depth>0.001</min_depth>
+            <min_depth>0.0002</min_depth>
           </ode>
         </contact>
       </surface>
@@ -216,17 +216,17 @@
       <surface>
         <friction>
           <ode>
-            <mu>100.0</mu>
-            <mu2>100.0</mu2>
+            <mu>2.0</mu>
+            <mu2>2.0</mu2>
             <slip1>0.0</slip1>
             <slip2>0.0</slip2>
           </ode>
         </friction>
         <contact>
           <ode>
-            <kp>1000000.0</kp>
+            <kp>100000.0</kp>
             <kd>100.0</kd>
-            <min_depth>0.001</min_depth>
+            <min_depth>0.0002</min_depth>
           </ode>
         </contact>
       </surface>

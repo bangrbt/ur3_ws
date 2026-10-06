@@ -12,6 +12,7 @@ Camera Perception Node (Bai 03):
 
 import math
 import json
+import time
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image, CameraInfo
@@ -35,25 +36,24 @@ except ImportError:
 TABLE_Z = 0.02  # mat tren cua khoi hop
 
 # Camera pose trong world frame (mat camera nhin xuong ngang)
-# pose: x=0.30, y=0.0, z=0.95, rpy=0, 1.5707963 (pi/2), 0
+# pose: x=0.30, y=0.0, z=0.92, rpy=0, 1.5707963 (pi/2), 0
 # => mat camera nhin thang xuong (-Z world)
 CAMERA_X = 0.30
 CAMERA_Y = 0.00
-CAMERA_Z = 0.95
+CAMERA_Z = 0.92
 
 # Khoang cach camera -> mat ban = CAMERA_Z - TABLE_Z_TABLE_SURFACE (0.0m)
 # Mat tren ban tai Z=0 trong world frame
-CAMERA_HEIGHT_ABOVE_TABLE = CAMERA_Z  # ~0.95m
+CAMERA_HEIGHT_ABOVE_TABLE = CAMERA_Z  # 0.92m
 
 # Cac vung zone va khay nguon (toa do world frame) de phan loai
 ZONE_DEFINITIONS = {
     "zone_a":      {"center": [0.35, -0.11], "radius": 0.055},
     "zone_b":      {"center": [0.35,  0.00], "radius": 0.055},
     "zone_c":      {"center": [0.35,  0.11], "radius": 0.055},
-    "zone_temp":   {"center": [0.18, -0.22], "radius": 0.055},
-    "zone_temp_1": {"center": [0.18, -0.22], "radius": 0.055},
-    "zone_temp_2": {"center": [0.18,  0.22], "radius": 0.055},
-    "zone_temp_3": {"center": [0.18,  0.00], "radius": 0.055},
+    "zone_temp_1": {"center": [0.35, -0.22], "radius": 0.04},
+    "zone_temp_2": {"center": [0.35,  0.22], "radius": 0.04},
+    "zone_temp_3": {"center": [0.45,  0.00], "radius": 0.04},
     "source_red":    {"center": [0.24, -0.11], "radius": 0.055},
     "source_yellow": {"center": [0.24,  0.00], "radius": 0.055},
     "source_blue":   {"center": [0.24,  0.11], "radius": 0.055},
@@ -101,15 +101,14 @@ class CameraPerceptionNode(Node):
 
         self.bridge = CvBridge() if CV2_AVAILABLE else None
         self.latest_image = None
+        self.latest_image_received_at = None
         self.camera_info = None
 
         # Ket qua phan tich moi nhat (thread-safe qua GIL Python)
         self.scene_state = {
             "detected_objects": {},  # {object_name: {x, y, location}}
-            "zone_occupants": {z: None for z in ["zone_a", "zone_b", "zone_c",
-                                                  "zone_temp", "zone_temp_1",
-                                                  "zone_temp_2", "zone_temp_3"]},
-            "camera_active": CV2_AVAILABLE,
+            "zone_occupants": {},
+            "camera_active": False,
         }
 
         # Subscriber camera image
@@ -144,11 +143,15 @@ class CameraPerceptionNode(Node):
     def _image_callback(self, msg: Image):
         """Nhan frame anh moi nhat tu camera."""
         self.latest_image = msg
+        self.latest_image_received_at = time.monotonic()
 
     def _process_and_publish(self):
         """Xu ly anh hien tai, cap nhat scene state va publish."""
-        if not CV2_AVAILABLE or self.latest_image is None:
-            # Neu khong co OpenCV hoac chua co anh, publish trang thai hien tai
+        if (not CV2_AVAILABLE or self.latest_image is None or
+                self.latest_image_received_at is None or
+                time.monotonic() - self.latest_image_received_at > 5.0):
+            self.scene_state = {"detected_objects": {}, "zone_occupants": {},
+                                "camera_active": False}
             self._publish_state()
             return
 
@@ -177,8 +180,7 @@ class CameraPerceptionNode(Node):
 
         # Cap nhat zone_occupants tu du lieu detect duoc
         zone_occupants = {z: None for z in ["zone_a", "zone_b", "zone_c",
-                                             "zone_temp", "zone_temp_1",
-                                             "zone_temp_2", "zone_temp_3"]}
+                                             "zone_temp_1", "zone_temp_2", "zone_temp_3"]}
         for obj_name, info in detected.items():
             loc = info.get("location", "unknown")
             if loc in zone_occupants:
@@ -188,6 +190,8 @@ class CameraPerceptionNode(Node):
             "detected_objects": detected,
             "zone_occupants": zone_occupants,
             "camera_active": True,
+            "frame_age_sec": round(time.monotonic() - self.latest_image_received_at, 3),
+            "detected_count": len(detected),
         }
         self._publish_state()
 
@@ -197,7 +201,7 @@ class CameraPerceptionNode(Node):
             h, w = annotated_img.shape[:2]
 
             # 1. Ve cac Zone muc tieu va trang thai (Xanh = trong, Do = bi chiem)
-            target_zones = ["zone_a", "zone_b", "zone_c", "zone_temp"]
+            target_zones = ["zone_a", "zone_b", "zone_c", "zone_temp_1", "zone_temp_2", "zone_temp_3"]
             for z_name in target_zones:
                 if z_name in ZONE_DEFINITIONS:
                     center_xy = ZONE_DEFINITIONS[z_name]["center"]
@@ -304,7 +308,7 @@ class CameraPerceptionNode(Node):
         # Camera tai (CAMERA_X, CAMERA_Y, CAMERA_Z) nhin thang xuong
         # -> mat ban nam tai Z_world = 0.0
         # Khoang cach tu camera den mat ban
-        depth = CAMERA_Z  # mat ban tai Z_world = 0
+        depth = CAMERA_Z - 0.04  # camera -> mat tren cube cao 4 cm
 
         # Pixel -> camera-frame normalized coordinates
         x_cam = (u - cx) / fx * depth
@@ -338,7 +342,7 @@ class CameraPerceptionNode(Node):
             cx = img_w / 2.0
             cy = img_h / 2.0
 
-        depth = CAMERA_Z
+        depth = CAMERA_Z - 0.04
         y_cam = -(world_x - CAMERA_X)
         x_cam = -(world_y - CAMERA_Y)
 
@@ -382,7 +386,7 @@ class CameraPerceptionNode(Node):
         # Kich hoat xu ly ngay (neu co anh)
         self._process_and_publish()
 
-        response.success = True
+        response.success = bool(self.scene_state.get("camera_active"))
         response.message = json.dumps(self.scene_state)
         return response
 

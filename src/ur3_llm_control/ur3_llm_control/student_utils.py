@@ -54,78 +54,45 @@ def get_color_name(cube_name: str) -> str:
 
 
 def compute_optimal_sorting_plan(cube_locations: Dict[str, str], zone_mapping: Dict[str, str]) -> Tuple[list, str]:
-    """
-    Thuat toan lap ke hoach sap xep toi uu tuyet doi (Minimum Moves Optimization):
-    1. Khoi nao da nam dung vi tri dich -> GIU NGUYEN (khong thao tac).
-    2. Khoi chua dung vi tri ma zone dich dang trong -> gap THANG vao zone dich!
-    3. Neu co xung dot hoan doi (e.g. 2 khoi doi cho nhau hoac chu trinh khep kin):
-       - Gap 1 khoi tam vao zone_temp de giai phong 1 zone dich.
-       - Khoi con lai di chuyen THANG vao vi tri dich vua duoc giai phong (khong dua ra cho nua).
-       - Dua khoi tu zone_temp vao vi tri dich con lai.
-    4. Toi uu hoa thoi gian va quy dao, khong can tra toan bo ve khay cho!
-    """
-    target_of_cube = {cube: zone for zone, cube in zone_mapping.items()}
-    sim_locs = dict(cube_locations)
-    sim_zones = {"zone_a": None, "zone_b": None, "zone_c": None, "zone_temp": None}
-    for c, loc in sim_locs.items():
-        if loc in sim_zones:
-            sim_zones[loc] = c
+    """Sort three targets while accounting for all five cubes and buffer occupancy."""
+    from .plan_safety import TEMP_ZONES, TARGET_ZONES, canonical_zone
 
-    # Loc cac khoi da o dung vi tri
-    already_correct = [c for c, tgt in target_of_cube.items() if sim_locs.get(c) == tgt]
-    remaining = [c for c in target_of_cube if c not in already_correct]
-
-    if not remaining:
-        thought = "Tat ca cac khoi da o dung vi tri theo quy uoc MSSV, robot khong can di chuyen bat ky khoi nao."
-        return [{"skill": "home"}], thought
+    locations = {cube: canonical_zone(loc) for cube, loc in cube_locations.items()}
+    occupants = {zone: None for zone in TARGET_ZONES + TEMP_ZONES}
+    for cube, zone in locations.items():
+        if zone in occupants:
+            if occupants[zone] is not None:
+                raise ValueError(f"Hai vat duoc bao o cung {zone}")
+            occupants[zone] = cube
 
     steps = []
-    reason_notes = []
-    if already_correct:
-        reason_notes.append(f"Cac khoi da o dung vi tri giu nguyen: {already_correct}.")
+    def relocate(cube, destination):
+        source = locations.get(cube)
+        if occupants[destination] is not None:
+            raise ValueError(f"{destination} dang bi chiem")
+        steps.extend(({"skill": "pick", "object": cube},
+                      {"skill": "place", "object": cube, "zone": destination}))
+        if source in occupants:
+            occupants[source] = None
+        occupants[destination] = cube
+        locations[cube] = destination
 
-    max_loops = 20
-    loop_count = 0
-    while remaining and loop_count < max_loops:
-        loop_count += 1
-        moved = False
-        # 1. Uu tien di chuyen truc tiep neu target zone dang trong
-        for c in list(remaining):
-            tgt_z = target_of_cube[c]
-            if sim_zones[tgt_z] is None:
-                old_loc = sim_locs.get(c, "source_tray")
-                steps.append({"skill": "pick", "object": c})
-                steps.append({"skill": "place", "object": c, "zone": tgt_z})
-                if old_loc in sim_zones:
-                    sim_zones[old_loc] = None
-                sim_zones[tgt_z] = c
-                sim_locs[c] = tgt_z
-                remaining.remove(c)
-                reason_notes.append(f"Di chuyen truc tiep {c} tu {old_loc} vao {tgt_z}.")
-                moved = True
+    for _ in range(12):
+        pending = [(zone, cube) for zone, cube in zone_mapping.items()
+                   if locations.get(cube) != zone]
+        if not pending:
+            steps.append({"skill": "home"})
+            return steps, f"Sap xep xong 3 zone, co {len(steps) - 1} buoc thao tac."
+        for zone, cube in pending:
+            if occupants[zone] is None:
+                relocate(cube, zone)
                 break
-
-        # 2. Neu khong co zone nao trong -> co xung dot chu trinh (cycle), can giai phong 1 zone qua zone_temp
-        if not moved:
-            c_to_evict = None
-            for c in remaining:
-                cur_z = sim_locs.get(c)
-                if cur_z in sim_zones and cur_z != "zone_temp":
-                    c_to_evict = c
-                    break
-            if not c_to_evict:
-                c_to_evict = remaining[0]
-
-            old_loc = sim_locs.get(c_to_evict, "source_tray")
-            steps.append({"skill": "pick", "object": c_to_evict})
-            steps.append({"skill": "place", "object": c_to_evict, "zone": "zone_temp"})
-            if old_loc in sim_zones:
-                sim_zones[old_loc] = None
-            sim_zones["zone_temp"] = c_to_evict
-            sim_locs[c_to_evict] = "zone_temp"
-            reason_notes.append(f"Giai phong {old_loc} bang cach tam dua {c_to_evict} ra zone_temp.")
-
-    steps.append({"skill": "home"})
-    thought = " ".join(reason_notes) + f" Hoan thanh ke hoach toi uu ({len(steps)} buoc)."
-    return steps, thought
-
+        else:
+            # A cycle, or a non-target cube occupies a target zone.
+            zone, _ = pending[0]
+            blocker = occupants[zone]
+            buffer_zone = next((z for z in TEMP_ZONES if occupants[z] is None), None)
+            if blocker is None or buffer_zone is None:
+                raise ValueError("Khong con vi tri tam trong de sap xep")
+            relocate(blocker, buffer_zone)
+    raise ValueError("Khong the hoan thanh ke hoach sap xep")

@@ -12,7 +12,7 @@
 1. [Giới Thiệu Workspace](#1-giới-thiệu-workspace)
 2. [Cấu Trúc Thư Mục & Quản Lý Nhánh Git](#2-cấu-trúc-thư-mục--quản-lý-nhánh-git)
 3. [Danh Mục Các Bài Tập Trong Workspace](#3-danh-mục-các-bài-tập-trong-workspace)
-4. [Lệnh Dọn Dẹp Tiến Trình Treo (Bắt buộc trước mỗi lần chạy)](#4-lệnh-dọn-dẹp-tiến-trình-treo-bắt-buộc-trước-mỗi-lần-chạy)
+4. [Dừng mô phỏng và kiểm tra tiến trình cũ](#4-dừng-mô-phỏng-và-kiểm-tra-tiến-trình-cũ)
 5. [Hướng Dẫn Cài Đặt & Biên Dịch Toàn Bộ Workspace](#5-hướng-dẫn-cài-đặt--biên-dịch-toàn-bộ-workspace)
 6. [Hướng Dẫn Chuyển Nhánh & Chạy Từng Bài Tập](#6-hướng-dẫn-chuyển-nhánh--chạy-từng-bài-tập)
 
@@ -88,20 +88,16 @@ Kho lưu trữ được tổ chức theo từng nhánh riêng biệt tương ứ
 ### 👁️ Bài tập 3: LLM Skill Planning với Gripper và Camera (`ur3_llm_control`)
 * **Mục tiêu:** Nâng cấp hệ thống UR3 với Gripper vật lý cử động thực tế (không teleport) và Camera RGB góc nhìn trên cao nhận diện trạng thái môi trường 5 khối hộp và 3 vùng đích bằng OpenCV trong thời gian thực.
 * **Đặc điểm nổi bật:**
-  - **Gripper cơ học vật lý:** Khớp tịnh tiến (prismatic) đóng/mở thật, phối hợp plugin DetachableJoint trong Ignition Gazebo, không dùng `set_pose` teleport.
+  - **Gripper cơ học vật lý:** Khớp tịnh tiến (prismatic) đóng/mở thật, đóng quanh vật trong Ignition Gazebo và giữ vật bằng `DetachableJoint` sau khi kiểm tra căn chỉnh; skill gắp/đặt không dùng `set_pose`.
   - **Camera Perception Node (`camera_perception`):** Nhận diện 5 khối màu (`red_cube`, `yellow_cube`, `blue_cube`, `green_cube`, `purple_cube`) và trạng thái chiếm giữ của các vùng trong thời gian thực qua thị giác máy tính OpenCV.
-  - **Tự động giải quyết xung đột (Conflict Resolution):** Khi vùng đích bị chiếm (ví dụ Zone B đang có Blue Cube, người dùng yêu cầu "Put red cube in Zone B"), hệ thống tự động nhận biết qua camera, di chuyển vật cản ra vị trí đệm tạm (`zone_temp_1/2/3`), gắp vật theo yêu cầu vào ô đích và về Home.
+  - **Tự động giải quyết xung đột (Conflict Resolution):** Khi vùng đích bị chiếm (ví dụ Zone B đang có Blue Cube, người dùng yêu cầu "Put red cube in Zone B"), hệ thống tự động nhận biết qua camera, di chuyển vật cản ra vị trí đệm tạm (`zone_temp_3/2/1`), gắp vật theo yêu cầu vào ô đích và về Home.
 * **Chi tiết & Hướng dẫn chạy:** Xem tại [src/ur3_llm_control/README.md](src/ur3_llm_control/README.md).
 
 ---
 
-## 4. Lệnh Dọn Dẹp Tiến Trình Treo (Bắt buộc trước mỗi lần chạy)
+## 4. Dừng mô phỏng và kiểm tra tiến trình cũ
 
-Khi tắt mô phỏng Gazebo hoặc RViz bằng `Ctrl + C`, các tiến trình nền (`ign gazebo`, `ruby`, `gzserver`) có thể vẫn chạy ngầm chiếm cổng và tài nguyên phần cứng. **Luôn chạy lệnh dọn dẹp sau trước khi khởi động bất kỳ bài tập nào:**
-
-```bash
-killall -9 ruby ign gzserver gzclient rviz2 2>/dev/null || pkill -9 -f "ign gazebo"
-```
+Dừng launch bằng `Ctrl + C` và chờ Gazebo đóng. Nếu lần khởi động sau báo world hoặc controller đã tồn tại, kiểm tra PID của đúng tiến trình mô phỏng cũ bằng `ps -eo pid,cmd | rg 'ign gazebo'`, rồi dừng PID đó. Tránh dừng hàng loạt tiến trình Gazebo/RViz thuộc phiên làm việc khác.
 
 ---
 
@@ -139,15 +135,12 @@ source install/setup.bash
 # 1. Chuyển sang nhánh Bài tập 1:
 git checkout bai-tap-tuan-1
 
-# 2. Dọn dẹp tiến trình cũ:
-killall -9 ruby ign gzserver gzclient rviz2 2>/dev/null || pkill -9 -f "ign gazebo"
-
-# 3. Build package my_ur3_draw:
+# 2. Build package my_ur3_draw:
 source /opt/ros/humble/setup.bash
 colcon build --packages-select my_ur3_draw --symlink-install
 source install/setup.bash
 
-# 4. Khởi chạy mô phỏng vẽ chữ (ví dụ vẽ chữ B):
+# 3. Khởi chạy mô phỏng vẽ chữ (ví dụ vẽ chữ B):
 ros2 launch my_ur3_draw ur3_draw_sim.launch.py letter:=B
 ```
 *(Tham khảo thêm các tùy chọn vẽ ảnh, vẽ từ bất kỳ tại [src/my_ur3_draw/README.md](src/my_ur3_draw/README.md))*
@@ -159,18 +152,15 @@ ros2 launch my_ur3_draw ur3_draw_sim.launch.py letter:=B
 # 1. Chuyển sang nhánh Bài tập 2:
 git checkout assignments_2
 
-# 2. Dọn dẹp tiến trình cũ:
-killall -9 ruby ign gzserver gzclient rviz2 2>/dev/null || pkill -9 -f "ign gazebo"
-
-# 3. Khởi chạy 9Router Gateway ở một terminal riêng:
+# 2. Khởi chạy 9Router Gateway ở một terminal riêng:
 npx 9router
 
-# 4. Build package ur3_llm_control:
+# 3. Build package ur3_llm_control:
 source /opt/ros/humble/setup.bash
 colcon build --packages-select ur3_llm_control --symlink-install
 source install/setup.bash
 
-# 5. Khởi chạy trọn gói hệ thống Bài 2 (Gazebo + MoveIt 2 + RViz + LLM):
+# 4. Khởi chạy trọn gói hệ thống Bài 2 (Gazebo + MoveIt 2 + RViz + LLM):
 ros2 launch ur3_llm_control llm_robot.launch.py
 ```
 *(Hệ thống sẽ mở giao diện dòng lệnh console, bạn có thể nhập lệnh: `"Đưa khối đỏ vào ô A"`, `"Chuyển khối vàng vào ô C"`, hoặc `"Hãy sắp xếp các khối theo mã sinh viên"`)*.  

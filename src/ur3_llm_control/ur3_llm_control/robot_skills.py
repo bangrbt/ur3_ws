@@ -18,7 +18,7 @@ Cac skill co ban:
 Cac skill nang cao:
 - swap(object_a, object_b): Hoan doi 2 vat the su dung zone_temp
 - stack(object_top, object_bottom): Xep chong vat the
-- reset_scene(): Dua tat ca cac khoi hop ve lai 3 khay phoi ban dau
+- reset_scene(): Dua tat ca cac khoi hop ve lai 5 khay phoi ban dau
 - inspect_scene(): Tra cuu trang thai toan bo khong gian lam viec
 
 Moi skill tra ve trang thai thuc thi: SUCCESS, FAILED, INVALID_OBJECT, PLANNING_FAILED
@@ -74,6 +74,9 @@ class RobotSkills:
         self.zone_occupants = {z_name: None for z_name in self.zones_config}
 
         self.holding_object = None  # Vat the robot dang kep
+        self._gazebo_joint_plugins = set()
+        self._gazebo_robot_id = None
+        self.grasp_offsets = {}
 
         # Action Clients MoveIt 2
         self._move_group_client = ActionClient(self.node, MoveGroup, "/move_action")
@@ -89,8 +92,8 @@ class RobotSkills:
 
         # Gripper Joint State Publisher (phuc vu hien thi co bop muot ma lien tuc tren RViz)
         self.gripper_joint_pub = self.node.create_publisher(JointState, "/joint_states", 10)
-        self.current_gripper_pos = 0.024
-        self.target_gripper_pos = 0.024
+        self.current_gripper_pos = 0.016
+        self.target_gripper_pos = 0.016
         # Timer duy tri va noi suy chuyen dong co bop 20Hz deu dan
         self.gripper_state_timer = self.node.create_timer(0.05, self._publish_gripper_state)
 
@@ -102,6 +105,7 @@ class RobotSkills:
 
         # Camera Perception Subscription
         self.camera_perception_state = {}
+        self.last_camera_state_at = None
         self.camera_sub = self.node.create_subscription(
             String, "/scene/camera_state", self._camera_state_cb, 10
         )
@@ -113,7 +117,7 @@ class RobotSkills:
         # Timer dinh ky theo doi tool0 khi dang gap vat de cap nhat vi tri vat the
         self.tracking_timer = self.node.create_timer(0.1, self._tracking_callback)
 
-        # Khoi tao trang thai gripper vat ly va tach cac DetachableJoint ban dau
+        # Khoi tao gripper; Gazebo joint duoc tao chi tai luc gap cube
         self._init_gripper_hardware()
 
         # Orientation chu vi thang dung vuong goc mat ban (Top-down grasp)
@@ -122,6 +126,7 @@ class RobotSkills:
 
         # Tham so chieu cao
         self.approach_height = float(self.motion_params.get("approach_height", 0.14))
+        self.travel_height = float(self.motion_params.get("travel_height", 0.20))
         self.grasp_height = float(self.motion_params.get("grasp_height", 0.04))
         self.place_height = float(self.motion_params.get("place_height", 0.04))
         self.home_joints = list(self.motion_params.get("home_joints", [0.0, -1.3, 1.5, -1.7, -1.57, 0.0]))
@@ -152,6 +157,101 @@ class RobotSkills:
                 pass
         threading.Thread(target=_call, daemon=True).start()
 
+    def _gazebo_model_id(self):
+        if self._gazebo_robot_id is not None:
+            return self._gazebo_robot_id
+        import re
+        try:
+            result = subprocess.run(
+                ["ign", "topic", "-e", "-t", "/world/default/pose/info", "-n", "1"],
+                capture_output=True, text=True, timeout=4.0)
+            match = re.search(r'name: "ur"\s+id: (\d+)', result.stdout)
+            if match:
+                self._gazebo_robot_id = int(match.group(1))
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+        return self._gazebo_robot_id
+
+    def _gazebo_joint_topic(self, object_name, action):
+        return f"/gripper/{object_name}/{action}"
+
+    def _command_gazebo_joint(self, object_name, action):
+        state_topic = self._gazebo_joint_topic(object_name, "state")
+        watcher = None
+        try:
+            watcher = subprocess.Popen(
+                ["ign", "topic", "-e", "-t", state_topic, "-n", "1"],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            time.sleep(0.8)
+            sent = subprocess.run(
+                ["ign", "topic", "-t", self._gazebo_joint_topic(object_name, action),
+                 "-m", "ignition.msgs.Empty", "-p", "unused: true"],
+                capture_output=True, text=True, timeout=5.0)
+            if sent.returncode != 0:
+                return False
+            output, _ = watcher.communicate(timeout=6.0)
+            return f'data: "{("attached" if action == "attach" else "detached")}"' in output
+        except (OSError, subprocess.TimeoutExpired):
+            return False
+        finally:
+            if watcher is not None and watcher.poll() is None:
+                watcher.terminate()
+                try:
+                    watcher.wait(timeout=1.0)
+                except subprocess.TimeoutExpired:
+                    watcher.kill()
+
+    def _gazebo_attach(self, object_name):
+        """Create a Gazebo fixed joint only while fingers surround the cube."""
+        if object_name in self._gazebo_joint_plugins:
+            for attempt in range(3):
+                if self._command_gazebo_joint(object_name, "attach"):
+                    return True
+                time.sleep(0.3)
+            self.node.get_logger().error(f"Gazebo khong xac nhan reattach {object_name}")
+            return False
+        robot_id = self._gazebo_model_id()
+        if robot_id is None:
+            return False
+        xml = (f"<parent_link>wrist_3_link</parent_link>"
+               f"<child_model>{object_name}</child_model><child_link>link</child_link>"
+               f"<detach_topic>{self._gazebo_joint_topic(object_name, 'detach')}</detach_topic>"
+               f"<attach_topic>{self._gazebo_joint_topic(object_name, 'attach')}</attach_topic>"
+               f"<output_topic>{self._gazebo_joint_topic(object_name, 'state')}</output_topic>")
+        request = (f'entity {{ id: {robot_id} type: MODEL }} plugins {{ '
+                   'name: "ignition::gazebo::systems::DetachableJoint" '
+                   'filename: "ignition-gazebo-detachable-joint-system" '
+                   f'innerxml: {json.dumps(xml)} }}')
+        try:
+            result = subprocess.run(
+                ["ign", "service", "-s", "/world/default/entity/system/add",
+                 "--reqtype", "ignition.msgs.EntityPlugin_V",
+                 "--reptype", "ignition.msgs.Boolean", "--timeout", "3000",
+                 "--req", request], capture_output=True, text=True, timeout=5.0)
+            if result.returncode != 0 or "data: true" not in result.stdout:
+                return False
+            for _ in range(15):
+                info = subprocess.run(
+                    ["ign", "topic", "-i", "-t", self._gazebo_joint_topic(object_name, "state")],
+                    capture_output=True, text=True, timeout=3.0)
+                if "ignition.msgs.StringMsg" in info.stdout:
+                    self._gazebo_joint_plugins.add(object_name)
+                    return True
+                time.sleep(0.1)
+        except (OSError, subprocess.TimeoutExpired):
+            return False
+        return False
+
+    def _gazebo_detach(self, object_name):
+        if object_name not in self._gazebo_joint_plugins:
+            return False
+        for attempt in range(3):
+            if self._command_gazebo_joint(object_name, "detach"):
+                return True
+            time.sleep(0.3)
+        self.node.get_logger().error(f"Gazebo khong xac nhan detach {object_name}")
+        return False
+
     def _send_gripper_joint_cmd(self, position_left: float, position_right: float):
         """Publish joint position command de dieu khien ngon tay gripper vat ly qua ros_gz_bridge."""
         try:
@@ -166,28 +266,31 @@ class RobotSkills:
         """Mo rong ngon tay kep Industrial Gripper san sang lam viec."""
         def _async_init():
             time.sleep(1.0)
-            self.target_gripper_pos = 0.024
-            self.current_gripper_pos = 0.024
-            self._send_gripper_joint_cmd(0.024, -0.024)
+            self.target_gripper_pos = 0.016
+            self.current_gripper_pos = 0.016
+            self._send_gripper_joint_cmd(0.016, -0.016)
         threading.Thread(target=_async_init, daemon=True).start()
 
     def _camera_state_cb(self, msg: String):
-        """Nhan ket qua nhan dien vi tri vat the va zone tu camera perception."""
+        """Use only fresh, complete observations as planning state."""
         try:
             data = json.loads(msg.data)
             self.camera_perception_state = data
+            self.last_camera_state_at = time.monotonic()
             detected = data.get("detected_objects", {})
-            # Cap nhat toa do vat the quan sat duoc neu robot khong dang cam vat do
+            expected = len(self.objects_config) - int(self.holding_object is not None)
+            if not data.get("camera_active") or len(detected) < expected:
+                return
             for obj_name, info in detected.items():
                 if self.holding_object != obj_name and "x" in info and "y" in info:
-                    self.object_positions[obj_name] = [info["x"], info["y"], info.get("z", 0.02)]
-            # Cap nhat zone occupants tu camera
+                    self.object_positions[obj_name] = [info["x"], info["y"], 0.02]
             zones = data.get("zone_occupants", {})
-            for z, occ in zones.items():
-                if z in self.zone_occupants and (self.holding_object is None or self.holding_object != occ):
-                    self.zone_occupants[z] = occ
-        except Exception:
-            pass
+            for zone, occupant in zones.items():
+                if zone in self.zone_occupants and occupant != self.holding_object:
+                    self.zone_occupants[zone] = occupant
+            self._publish_dynamic_cube_state()
+        except (ValueError, TypeError, KeyError) as exc:
+            self.node.get_logger().warn(f"Camera state khong hop le: {exc}")
 
     def _joint_state_cb(self, msg: JointState):
         """Cap nhat gia tri khop hien tai."""
@@ -216,43 +319,28 @@ class RobotSkills:
         except Exception:
             pass
 
-    def _set_gazebo_model_pose(self, name: str, x: float, y: float, z: float):
-        """Cap nhat vi tri vat the trong Gazebo (Ignition) bang service set_pose."""
-        def _call():
-            cmd = [
-                "ign", "service",
-                "-s", "/world/default/set_pose",
-                "--reqtype", "ignition.msgs.Pose",
-                "--reptype", "ignition.msgs.Boolean",
-                "--timeout", "300",
-                "--req", f'name: "{name}", position: {{x: {x:.4f}, y: {y:.4f}, z: {z:.4f}}}, orientation: {{w: 1.0}}'
-            ]
-            try:
-                subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=0.6)
-            except Exception:
-                pass
-        threading.Thread(target=_call, daemon=True).start()
-
     def _unwrap_joint_target(self, goal_joints: list) -> list:
-        """Chuyen doi goal joint ve goc quay gan nhat de khong bi quay xoay 360 do."""
-        unwrapped = []
-        for name, goal in zip(self.joint_names, goal_joints):
-            current = self.current_joint_positions.get(name, goal)
-            diff = (goal - current + math.pi) % (2.0 * math.pi) - math.pi
-            target = current + diff
-            target = max(-6.20, min(6.20, target))
-            unwrapped.append(target)
-        return unwrapped
+        """Keep configured joint targets inside URDF limits.
+
+        The UR3 joints are bounded, so a modulo-2π shortcut can turn a valid
+        home pose into an unreachable or self-colliding one. MoveIt plans the
+        shortest collision-free route to these exact, configured values.
+        """
+        return [float(value) for value in goal_joints]
 
     # =========================================================================
     # --- CAC SKILL NGUYEN THUY ---
     # =========================================================================
 
     def home(self) -> str:
-        """Dua tay may ve tu the cho mac dinh (Home pose) voi goc ngan nhat khong xoay vong."""
+        """Dua tay may ve tu the home hop le; MoveIt chon duong di tranh va cham."""
         self.node.get_logger().info("Thuc thi Skill: home()")
-        success = self._move_to_joint_target(self.home_joints)
-        return "SUCCESS" if success else "PLANNING_FAILED"
+        for attempt in range(3):
+            if self._move_to_joint_target(self.home_joints):
+                return "SUCCESS"
+            self.node.get_logger().warn(f"Home planning attempt {attempt + 1}/3 failed; retrying")
+            time.sleep(0.25)
+        return "PLANNING_FAILED"
 
     def _publish_gripper_state(self):
         """Noi suy vi tri ngon tay va publish lien tuc tren RViz (/joint_states) va Gazebo."""
@@ -273,54 +361,142 @@ class RobotSkills:
         except Exception:
             pass
 
-    def _animate_gripper(self, target_pos: float, steps: int = 10, duration: float = 0.35):
-        """Cap nhat target vi tri ngon tay va cho chuyen dong co bop hoan tat."""
+    def _animate_gripper(self, target_pos: float, steps: int = 12, duration: float = 0.4):
+        """Send gradual position commands so Gazebo fingers contact the cube gently."""
+        start = self.current_gripper_pos
+        for index in range(1, steps + 1):
+            position = start + (target_pos - start) * index / steps
+            self.current_gripper_pos = position
+            self._send_gripper_joint_cmd(position, -position)
+            time.sleep(duration / steps)
         self.target_gripper_pos = target_pos
-        step_dt = duration / max(1, steps)
-        for _ in range(steps):
-            time.sleep(step_dt)
-        self.current_gripper_pos = target_pos
-        self._send_gripper_joint_cmd(target_pos, -target_pos)
 
     def open_gripper(self) -> str:
-        """Mo ngon tay kep Industrial Gripper de nha vat theo vat ly thuc te."""
+        """Mo rong ngon tay kep Industrial Gripper de san sang gap vat hoac nha vat tren khong."""
         self.node.get_logger().info("Thuc thi Skill: open_gripper() - Mo rong ngon tay kep")
-        self._animate_gripper(0.024, steps=10, duration=0.35)
-        if self.holding_object:
-            self._detach_object_from_robot(self.holding_object)
+        held = self.holding_object
+        if held and not self._gazebo_detach(held):
+            return "GRIPPER_FAILED"
+        if held:
+            time.sleep(0.20)
+        self._animate_gripper(0.016, steps=10, duration=0.30)
+        if held:
+            if not self._detach_object_from_robot(held):
+                return "SCENE_FAILED"
+            if not self.sync_collision_scene(exclude=held):
+                return "SCENE_FAILED"
             self.holding_object = None
         time.sleep(0.15)
+        return "SUCCESS"
+
+    def release_object_in_tray(self) -> str:
+        """Mo nhe ngon tay kep du de tha khoi hop ma hoan toan khong cham vao thanh khay."""
+        self.node.get_logger().info("Thuc thi: release_object_in_tray() - Nha vat nhe nhang trong khay")
+        # Thao joint khi cube da tua tren khay, roi mo ngon tu tu de tranh bat vat.
+        held = self.holding_object
+        if held and not self._gazebo_detach(held):
+            return "GRIPPER_FAILED"
+        if held:
+            time.sleep(0.20)
+        self._animate_gripper(0.016, steps=12, duration=0.45)
+        if held:
+            if not self._detach_object_from_robot(held):
+                return "SCENE_FAILED"
+            if not self.sync_collision_scene(exclude=held):
+                return "SCENE_FAILED"
+            self.holding_object = None
+        time.sleep(0.40)
         return "SUCCESS"
 
     def close_gripper(self, object_name: str = None) -> str:
         """Co bop ngon tay kep Industrial Gripper ep chat vat the bang luc ma sat."""
         self.node.get_logger().info(f"Thuc thi Skill: close_gripper(object={object_name}) - Co bop ngon kep")
-        # 0.005m tao luc ep ma sat om chat khoi hop 4cm (hoac 0.000m neu kep khong)
-        target = 0.005 if object_name else 0.000
+        # 0.008m de hai mat silicone vua cham cube 4cm, khong nen vat.
+        target = 0.008 if object_name else 0.000
         self._animate_gripper(target, steps=12, duration=0.40)
         if object_name:
-            self._attach_object_to_robot(object_name)
+            tool_xy = None
+            for _ in range(5):
+                try:
+                    transform = self.tf_buffer.lookup_transform(
+                        "base_link", "tool0", rclpy.time.Time())
+                    tool_xy = (transform.transform.translation.x,
+                               transform.transform.translation.y)
+                    break
+                except Exception:
+                    time.sleep(0.1)
+            observed = self.object_positions.get(object_name)
+            if tool_xy is None or observed is None:
+                return "GRASP_POSE_UNKNOWN"
+            offset = (observed[0] - tool_xy[0], observed[1] - tool_xy[1])
+            if math.hypot(*offset) > 0.015:
+                self.node.get_logger().error(f"Gripper lech {math.hypot(*offset):.3f}m so voi {object_name}")
+                return "GRASP_MISALIGNED"
+            self.grasp_offsets[object_name] = offset
+            if not self._gazebo_attach(object_name):
+                self.node.get_logger().error(f"Gazebo attach that bai voi {object_name}")
+                return "GRIPPER_FAILED"
+            if not self._attach_object_to_robot(object_name):
+                self._gazebo_detach(object_name)
+                return "SCENE_FAILED"
             self.holding_object = object_name
+            for zone, occupant in self.zone_occupants.items():
+                if occupant == object_name:
+                    self.zone_occupants[zone] = None
         time.sleep(0.20)
         return "SUCCESS"
 
+    def _tool_reached(self, target_pose: Pose, timeout_sec: float = 8.0) -> bool:
+        """Confirm the measured TCP reached a grasp/place goal before touching a cube."""
+        deadline = time.monotonic() + timeout_sec
+        last_error = None
+        while time.monotonic() < deadline:
+            try:
+                transform = self.tf_buffer.lookup_transform(
+                    "base_link", "tool0", rclpy.time.Time())
+                actual = transform.transform.translation
+                xy_error = math.hypot(actual.x - target_pose.position.x,
+                                      actual.y - target_pose.position.y)
+                z_error = abs(actual.z - target_pose.position.z - 0.082)
+                last_error = (xy_error, z_error)
+                if xy_error <= 0.012 and z_error <= 0.015:
+                    return True
+            except Exception:
+                pass
+            time.sleep(0.15)
+        self.node.get_logger().warn(f"TCP chua toi dich: sai so XY/Z = {last_error}")
+        return False
+
+    def _travel_to(self, x: float, y: float) -> bool:
+        """Plan a collision checked transfer above cubes before descending."""
+        pose = Pose()
+        pose.position.x = x
+        pose.position.y = y
+        pose.position.z = self.travel_height
+        pose.orientation = self.top_down_quaternion
+        try:
+            tool = self.tf_buffer.lookup_transform("base_link", "tool0", rclpy.time.Time())
+            distance = math.hypot(x - tool.transform.translation.x,
+                                  y - tool.transform.translation.y)
+        except Exception:
+            distance = float("inf")
+        # Long Cartesian paths can cross an IK branch and abruptly flip joints.
+        # Let MoveGroup route those transfers around the table and other cubes.
+        methods = ((self._move_to_pose_target, pose), (self._move_cartesian, [pose]))
+        if distance <= 0.08:
+            methods = tuple(reversed(methods))
+        for method, target in methods:
+            if method(target):
+                return True
+        if self.holding_object is None and self.home() == "SUCCESS":
+            return self._move_to_pose_target(pose)
+        return False
+
     def move_above(self, target_name: str) -> str:
-        """Di chuyen tay kep den vi tri tren khong cach vat the/zone 14cm."""
-        self.node.get_logger().info(f"Thuc thi Skill: move_above({target_name})")
         pos = self._get_target_xy(target_name)
         if pos is None:
             return "INVALID_OBJECT"
-
-        target_pose = Pose()
-        target_pose.position.x = pos[0]
-        target_pose.position.y = pos[1]
-        target_pose.position.z = self.approach_height
-        target_pose.orientation = self.top_down_quaternion
-
-        if not self._move_cartesian([target_pose]):
-            if not self._move_to_pose_target(target_pose):
-                return "PLANNING_FAILED"
-        return "SUCCESS"
+        return "SUCCESS" if self._travel_to(pos[0], pos[1]) else "PLANNING_FAILED"
 
     def move_to_zone(self, zone_name: str) -> str:
         """Di chuyen tay kep den phia tren vung Zone."""
@@ -336,7 +512,7 @@ class RobotSkills:
         4. Tiep can tren khong (Cartesian nhanh)
         5. Ha kep Cartesian xuong vat (thang dung tuyet doi)
         6. Dong kep (Dinh kem vat the & dong bo vi tri Gazebo)
-        7. Nhac vat len cao (Cartesian thang dung)
+        7. Nhac vat thang dung len do cao chuyen ngang
         """
         self.node.get_logger().info(f"Thuc thi Skill: pick({object_name})")
         if object_name not in self.objects_config:
@@ -356,8 +532,10 @@ class RobotSkills:
             if occupant == object_name:
                 self.zone_occupants[z] = None
 
-        # 1. Mo kep
+        # 1. Mo kep va loai target khoi collision scene de co the cham vao no.
         self.open_gripper()
+        if not self.sync_collision_scene(exclude=object_name):
+            return "SCENE_FAILED"
 
         # 2. Tiep can tren khong cua vat
         approach_pose = Pose()
@@ -366,6 +544,8 @@ class RobotSkills:
         approach_pose.position.z = self.approach_height
         approach_pose.orientation = self.top_down_quaternion
 
+        if not self._travel_to(obj_xy[0], obj_xy[1]):
+            return "PLANNING_FAILED"
         if not self._move_cartesian([approach_pose]):
             if not self._move_to_pose_target(approach_pose):
                 return "PLANNING_FAILED"
@@ -380,20 +560,32 @@ class RobotSkills:
         if not self._move_cartesian([grasp_pose]):
             if not self._move_to_pose_target(grasp_pose):
                 return "PLANNING_FAILED"
+        if not self._tool_reached(grasp_pose):
+            if not self._move_to_pose_target(grasp_pose) or not self._tool_reached(grasp_pose):
+                return "GRASP_MISALIGNED"
 
         # Tam dung on dinh de tranh va cham nay vat
         time.sleep(0.25)
 
         # 4. Dong kep co bop kẹp chặt vật thể bằng lực ma sát
-        self.close_gripper(object_name)
-        time.sleep(0.3)
+        close_status = self.close_gripper(object_name)
+        if close_status != "SUCCESS":
+            return close_status
+        time.sleep(0.15)
         self._publish_dynamic_cube_state()
 
-        # 5. Nhac vat len cao (Cartesian thang dung nhe nhang)
-        if not self._move_cartesian([approach_pose]):
-            self._move_to_pose_target(approach_pose)
+        # 5. Nhac vat thang dung toi do cao chuyen ngang truoc khi doi vi tri.
+        # Tu the thap co the lam cube dang cam cham forearm khi MoveGroup gap tay.
+        lift_pose = Pose()
+        lift_pose.position.x = obj_xy[0]
+        lift_pose.position.y = obj_xy[1]
+        lift_pose.position.z = self.travel_height
+        lift_pose.orientation = self.top_down_quaternion
+        if not self._move_cartesian([lift_pose]):
+            if not self._move_to_pose_target(lift_pose):
+                return "RETRACT_FAILED"
 
-        self.object_positions[object_name] = [obj_xy[0], obj_xy[1], self.approach_height]
+        self.object_positions[object_name] = [obj_xy[0], obj_xy[1], self.travel_height]
         self._publish_dynamic_cube_state()
 
         return "SUCCESS"
@@ -423,11 +615,12 @@ class RobotSkills:
         zone_data = self.zones_config[zone_name]
         zone_pos = zone_data.get("position", [0.35, 0.0, 0.001])
 
-        # Neu Zone da co vat khac, dat lech 0.032m theo truc Y de khong bi chong de len nhau
         occupied_by = self.zone_occupants.get(zone_name)
-        offset_y = 0.032 if (occupied_by is not None and occupied_by != object_name) else 0.0
-        target_x = zone_pos[0]
-        target_y = zone_pos[1] + offset_y
+        if occupied_by not in (None, object_name):
+            return "ZONE_OCCUPIED"
+        offset_x, offset_y = self.grasp_offsets.get(object_name, (0.0, 0.0))
+        target_x = zone_pos[0] - offset_x
+        target_y = zone_pos[1] - offset_y
 
         # 1. Tiep can tren khong cua Zone (Di chuyen duong thang Cartesian ngang)
         zone_approach_pose = Pose()
@@ -436,6 +629,8 @@ class RobotSkills:
         zone_approach_pose.position.z = self.approach_height
         zone_approach_pose.orientation = self.top_down_quaternion
 
+        if not self._travel_to(target_x, target_y):
+            return "PLANNING_FAILED"
         if not self._move_cartesian([zone_approach_pose]):
             if not self._move_to_pose_target(zone_approach_pose):
                 return "PLANNING_FAILED"
@@ -453,22 +648,41 @@ class RobotSkills:
         if not self._move_cartesian([place_pose]):
             if not self._move_to_pose_target(place_pose):
                 return "PLANNING_FAILED"
+        if not self._tool_reached(place_pose):
+            if not self._move_to_pose_target(place_pose) or not self._tool_reached(place_pose):
+                return "PLANNING_FAILED"
 
-        # Tam dung on dinh truoc khi nha vat
-        time.sleep(0.25)
+        # Cho tay va cube het dao dong truoc khi tach joint.
+        time.sleep(0.80)
 
-        # 3. Mo kep de nha vat nhe nhang theo trong luc
-        self.open_gripper()
-        time.sleep(0.2)
+        # 3. Nha vat nhe nhang trong khay ma khong quet vao thanh khay
+        release_status = self.release_object_in_tray()
+        if release_status != "SUCCESS":
+            return release_status
+
         final_pos = [target_x, target_y, 0.02]
         self.object_positions[object_name] = final_pos
         self.zone_occupants[zone_name] = object_name
         self._publish_dynamic_cube_state()
-
-        # 4. Nhac kep len cao (Cartesian Retract)
+        # 4. Nhac kep thang dung len tren khong (Cartesian Retract)
         if not self._move_cartesian([zone_approach_pose]):
-            self._move_to_pose_target(zone_approach_pose)
+            if not self._move_to_pose_target(zone_approach_pose):
+                return "RETRACT_FAILED"
 
+        # Raise to transfer height before a joint-space home move. This keeps the
+        # gripper away from the upper arm in folded UR3 poses after placement.
+        safe_pose = Pose()
+        safe_pose.position.x = target_x
+        safe_pose.position.y = target_y
+        safe_pose.position.z = self.travel_height
+        safe_pose.orientation = self.top_down_quaternion
+        if not self._move_cartesian([safe_pose]) and not self._move_to_pose_target(safe_pose):
+            self.node.get_logger().warn("Khong nang them duoc len do cao transfer; home se lap ke hoach lai")
+
+        # 5. Cap nhat collision scene sau khi ngon tay da roi khoi cube.
+        self.open_gripper()
+        if not self.sync_collision_scene():
+            return "SCENE_FAILED"
         return "SUCCESS"
 
     # =========================================================================
@@ -493,10 +707,13 @@ class RobotSkills:
             elif occupant == object_b:
                 zone_of_b = z
 
-        # 1. Chuyen A vao zone_temp
+        buffer_zone = self.find_free_position()
+        if buffer_zone is None:
+            return "NO_FREE_POSITION"
+        # 1. Chuyen A vao vung tam con trong
         if self.pick(object_a) != "SUCCESS":
             return "FAILED"
-        if self.place(object_a, "zone_temp") != "SUCCESS":
+        if self.place(object_a, buffer_zone) != "SUCCESS":
             return "FAILED"
 
         # 2. Chuyen B vao vi tri cua A (hoac zone_a)
@@ -556,10 +773,11 @@ class RobotSkills:
                 return "PLANNING_FAILED"
 
         # 4. Nha kep
-        self.open_gripper()
+        release_status = self.open_gripper()
+        if release_status != "SUCCESS":
+            return release_status
         final_pos = [pos_bottom[0], pos_bottom[1], 0.06]
         self.object_positions[object_top] = final_pos
-        self._set_gazebo_model_pose(object_top, final_pos[0], final_pos[1], final_pos[2])
         self._publish_dynamic_cube_state()
 
         # 5. Nhac kep len cao
@@ -602,31 +820,35 @@ class RobotSkills:
             if not self._move_to_pose_target(tray_place):
                 return "PLANNING_FAILED"
 
-        # 4. Mo kep de nha vat
-        self.open_gripper()
-        self._set_gazebo_model_pose(object_name, init_pos[0], init_pos[1], init_pos[2])
+        # 4. Nha vat nhe nhang trong khay
+        time.sleep(0.80)
+        release_status = self.release_object_in_tray()
+        if release_status != "SUCCESS":
+            return release_status
         self.object_positions[object_name] = list(init_pos)
         self._publish_dynamic_cube_state()
 
-        # 5. Nhac kep len cao
+        # 5. Nhac kep thang dung len tren khong (Retract)
         if not self._move_cartesian([tray_approach]):
             self._move_to_pose_target(tray_approach)
 
+        # 6. Mo rong gripper va cap nhat PlanningScene
+        self.open_gripper()
+        if not self.sync_collision_scene():
+            return "SCENE_FAILED"
         return "SUCCESS"
 
     def clear_zone(self, zone_name: str) -> str:
-        """Gap vat the dang nam trong 1 zone ra ngoai va tra ve khay chua ban dau."""
-        self.node.get_logger().info(f"Thuc thi Skill: clear_zone({zone_name})")
         occupant = self.zone_occupants.get(zone_name)
         if occupant is None:
-            self.node.get_logger().info(f"Vung '{zone_name}' da trong, khong can don.")
             return "SUCCESS"
-
-        self.node.get_logger().info(f"Dang gap '{occupant}' ra khoi '{zone_name}' de tra ve khay...")
-        res = self._return_object_to_tray(occupant)
-        if res == "SUCCESS":
-            self.zone_occupants[zone_name] = None
-        return res
+        destination = self.find_free_position()
+        if destination is None or destination == zone_name:
+            return "NO_FREE_POSITION"
+        result = self.pick(occupant)
+        if result != "SUCCESS":
+            return result
+        return self.place(occupant, destination)
 
     def clear_zones(self) -> str:
         """Gap tat ca cac vat the dang nam trong cac vung (Zone) tra ve khay chua ban dau."""
@@ -649,21 +871,16 @@ class RobotSkills:
         return "SUCCESS"
 
     def reset_scene(self) -> str:
-        """
-        Skill nang cao: Tra toan bo 3 khoi hop ve 3 khay phoi ban dau tren ban.
-        """
-        self.node.get_logger().info("Thuc thi Skill nang cao: reset_scene()")
+        """Return cubes to source trays using pick and place motions only."""
         for name, data in self.objects_config.items():
-            init_pos = data.get("initial_position", [0.24, 0.0, 0.02])
-            self.object_positions[name] = list(init_pos)
-            self._set_gazebo_model_pose(name, init_pos[0], init_pos[1], init_pos[2])
-
-        for z in self.zone_occupants:
-            self.zone_occupants[z] = None
-
-        self._publish_dynamic_cube_state()
-        self.home()
-        return "SUCCESS"
+            position = data["initial_position"]
+            current = self.object_positions.get(name)
+            if current and abs(current[0] - position[0]) < 0.015 and abs(current[1] - position[1]) < 0.015:
+                continue
+            result = self._return_object_to_tray(name)
+            if result != "SUCCESS":
+                return result
+        return self.home()
 
     def get_cube_locations(self) -> dict:
         """Tra ve vi tri logic cua tung vat the ('zone_a', 'zone_b', 'zone_c', 'zone_temp' hoac 'source_tray')."""
@@ -683,8 +900,31 @@ class RobotSkills:
             "cube_locations": self.get_cube_locations(),
             "zone_occupants": dict(self.zone_occupants),
             "holding": self.holding_object,
-            "positions": self.object_positions
+            "positions": dict(self.object_positions),
+            "camera_ready": bool(self.last_camera_state_at is not None and
+                                 time.monotonic() - self.last_camera_state_at < 8.0 and
+                                 self.camera_perception_state.get("camera_active") and
+                                 len(self.camera_perception_state.get("detected_objects", {})) >=
+                                 len(self.objects_config) - int(self.holding_object is not None))
         }
+
+    def verify_placements(self, expected: dict, timeout_sec: float = 8.0) -> bool:
+        """Confirm final cube locations using new camera images after the arm homes."""
+        started_at = time.monotonic()
+        deadline = started_at + timeout_sec
+        while time.monotonic() < deadline:
+            state = self.camera_perception_state
+            detected = state.get("detected_objects", {})
+            if (self.last_camera_state_at is not None and
+                    self.last_camera_state_at > started_at and
+                    time.monotonic() - self.last_camera_state_at < 8.0 and
+                    state.get("camera_active") and
+                    all(detected.get(obj, {}).get("location") == zone
+                        for obj, zone in expected.items())):
+                return True
+            time.sleep(0.1)
+        self.node.get_logger().error(f"Camera khong xac nhan duoc vi tri dich: {expected}")
+        return False
 
     def inspect_scene(self) -> dict:
         """Bao cao vi tri tat ca cac vat the, trang thai zone va trang thai tay kep."""
@@ -709,14 +949,12 @@ class RobotSkills:
     def find_free_position(self) -> str:
         """Tim mot vi tri vung dem hoac vi tri trong phu hop tren ban."""
         self.node.get_logger().info("Thuc thi Skill: find_free_position()")
-        temp_candidates = ["zone_temp_1", "zone_temp_2", "zone_temp_3", "zone_temp"]
+        temp_candidates = ["zone_temp_3", "zone_temp_2", "zone_temp_1",
+                           "zone_a", "zone_b", "zone_c"]
         for z in temp_candidates:
-            if self.zone_occupants.get(z) is None:
+            if z in self.zones_config and self.zone_occupants.get(z) is None:
                 return z
-        for z in ["zone_c", "zone_b", "zone_a"]:
-            if self.zone_occupants.get(z) is None:
-                return z
-        return "zone_temp_1"
+        return None
 
     # =========================================================================
     # --- CAC HAM BO TRO MOVEIT 2 ---
@@ -738,7 +976,7 @@ class RobotSkills:
         return future.done()
 
     def _move_to_joint_target(self, joint_values: list) -> bool:
-        """Lap ke hoach va thuc thi dich khop (Joint Target) voi goc ngan nhat khong quay xoay."""
+        """Lap ke hoach va thuc thi dich khop toi cac goc hop le da cau hinh."""
         if not self._move_group_client.wait_for_server(timeout_sec=5.0):
             self.node.get_logger().error("MoveGroup action server khong phan hoi!")
             return False
@@ -748,9 +986,9 @@ class RobotSkills:
         goal_msg = MoveGroup.Goal()
         goal_msg.request.group_name = "ur_manipulator"
         goal_msg.request.num_planning_attempts = 10
-        goal_msg.request.allowed_planning_time = 5.0
-        goal_msg.request.max_velocity_scaling_factor = 0.35
-        goal_msg.request.max_acceleration_scaling_factor = 0.25
+        goal_msg.request.allowed_planning_time = 8.0
+        goal_msg.request.max_velocity_scaling_factor = 0.55
+        goal_msg.request.max_acceleration_scaling_factor = 0.30
         goal_msg.planning_options.plan_only = False
         goal_msg.planning_options.planning_scene_diff.is_diff = True
         goal_msg.request.start_state.is_diff = True
@@ -776,7 +1014,7 @@ class RobotSkills:
             return False
 
         get_result_future = goal_handle.get_result_async()
-        self._wait_for_future(get_result_future, timeout_sec=30.0)
+        self._wait_for_future(get_result_future, timeout_sec=120.0)
 
         result = get_result_future.result()
         return bool(result and result.result.error_code.val == 1)
@@ -789,10 +1027,10 @@ class RobotSkills:
 
         goal_msg = MoveGroup.Goal()
         goal_msg.request.group_name = "ur_manipulator"
-        goal_msg.request.num_planning_attempts = 15
-        goal_msg.request.allowed_planning_time = 5.0
-        goal_msg.request.max_velocity_scaling_factor = 0.35
-        goal_msg.request.max_acceleration_scaling_factor = 0.25
+        goal_msg.request.num_planning_attempts = 8
+        goal_msg.request.allowed_planning_time = 4.0
+        goal_msg.request.max_velocity_scaling_factor = 0.55
+        goal_msg.request.max_acceleration_scaling_factor = 0.30
         goal_msg.planning_options.plan_only = False
         goal_msg.planning_options.planning_scene_diff.is_diff = True
         goal_msg.request.start_state.is_diff = True
@@ -819,7 +1057,7 @@ class RobotSkills:
         bv = BoundingVolume()
         sp = SolidPrimitive()
         sp.type = SolidPrimitive.SPHERE
-        sp.dimensions = [0.03]
+        sp.dimensions = [0.006]
         bv.primitives.append(sp)
         bv.primitive_poses.append(pose_stamped.pose)
         pos_constraint.constraint_region = bv
@@ -830,25 +1068,14 @@ class RobotSkills:
         orient_constraint.header.frame_id = "base_link"
         orient_constraint.link_name = "tool0"
         orient_constraint.orientation = target_pose.orientation
-        orient_constraint.absolute_x_axis_tolerance = 0.20
-        orient_constraint.absolute_y_axis_tolerance = 0.20
-        orient_constraint.absolute_z_axis_tolerance = 0.25  # Chat che, chan quay xoay bat thuong
+        orient_constraint.absolute_x_axis_tolerance = 0.35
+        orient_constraint.absolute_y_axis_tolerance = 0.35
+        orient_constraint.absolute_z_axis_tolerance = 0.5  # Chat che, chan quay xoay bat thuong
         orient_constraint.weight = 1.0
 
         constraints = Constraints()
         constraints.position_constraints.append(pos_constraint)
         constraints.orientation_constraints.append(orient_constraint)
-
-        # Rang buoc khop co tay wrist_2 va khop vai shoulder_lift giu dang robot chuan (elbow-up)
-        jc_w2 = JointConstraint()
-        jc_w2.joint_name = "wrist_2_joint"
-        w2_current = self.current_joint_positions.get("wrist_2_joint", -1.57)
-        w2_diff = (-1.5708 - w2_current + math.pi) % (2.0 * math.pi) - math.pi
-        jc_w2.position = w2_current + w2_diff
-        jc_w2.tolerance_above = 0.8
-        jc_w2.tolerance_below = 0.8
-        jc_w2.weight = 0.8
-        constraints.joint_constraints.append(jc_w2)
 
         goal_msg.request.goal_constraints.append(constraints)
 
@@ -860,10 +1087,18 @@ class RobotSkills:
             return False
 
         get_result_future = goal_handle.get_result_async()
-        self._wait_for_future(get_result_future, timeout_sec=30.0)
+        self._wait_for_future(get_result_future, timeout_sec=120.0)
 
         result = get_result_future.result()
-        return bool(result and result.result.error_code.val == 1)
+        if result and result.result.error_code.val == 1:
+            return True
+        # A position controller can report GOAL_TOLERANCE_VIOLATED on a wrist
+        # joint even when the measured TCP has reached the checked pose path.
+        # Accept only CONTROL_FAILED (-4), never a failed collision/planning check.
+        if result and result.result.error_code.val == -4 and self._tool_reached(target_pose, 2.0):
+            self.node.get_logger().warn("Controller bao sai so khop, nhung TF xac nhan TCP da toi dich")
+            return True
+        return False
 
     def _move_cartesian(self, waypoints: list) -> bool:
         """Di chuyen duong thang Descartes mem mai, khong giat lag, toc do nhanh, tinh toan timestamp chuan."""
@@ -889,46 +1124,30 @@ class RobotSkills:
 
         req.waypoints = offset_wps
         req.max_step = 0.008
-        req.jump_threshold = 0.0
-        req.avoid_collisions = False
+        req.jump_threshold = 1.5
+        req.avoid_collisions = True
+        req.max_velocity_scaling_factor = min(0.55, max(0.1, self.cartesian_max_vel))
+        req.max_acceleration_scaling_factor = 0.25
 
         future = self._cartesian_path_client.call_async(req)
         self._wait_for_future(future, timeout_sec=5.0)
 
         res = future.result()
-        if not res or res.fraction < 0.75:
+        if not res or res.fraction < 0.995 or res.error_code.val != 1:
             return False
 
-        # Thiet lap timestamp va van toc cho trajectory de joint_trajectory_controller chay em ai va nhanh
         traj = res.solution.joint_trajectory
-        num_points = len(traj.points)
-        if num_points == 0:
+        if not traj.points:
             return False
-
-        current_time = 0.0
-        traj.points[0].time_from_start.sec = 0
-        traj.points[0].time_from_start.nanosec = 0
-        traj.points[0].velocities = [0.0] * len(traj.points[0].positions)
-        max_vel = self.cartesian_max_vel  # 1.2 rad/s (nhanh va dut khoat)
-
-        for i in range(1, num_points):
-            dt = 0.015
-            for j in range(len(traj.points[i].positions)):
-                dq = abs(traj.points[i].positions[j] - traj.points[i-1].positions[j])
-                t_j = dq / max_vel
-                if t_j > dt:
-                    dt = t_j
-            current_time += dt
-            traj.points[i].time_from_start.sec = int(current_time)
-            traj.points[i].time_from_start.nanosec = int((current_time % 1.0) * 1e9)
-
-            traj.points[i].velocities = [
-                (traj.points[i].positions[k] - traj.points[i-1].positions[k]) / max(dt, 0.001)
-                for k in range(len(traj.points[i].positions))
-            ]
-
-        # Diem cuoi cung dung yen
-        traj.points[-1].velocities = [0.0] * len(traj.points[-1].positions)
+        if any(any(abs(b - a) > 0.35 for a, b in zip(previous.positions, current.positions))
+               for previous, current in zip(traj.points, traj.points[1:])):
+            self.node.get_logger().warn("Cartesian path co buoc nhay khop >0.35 rad, chuyen sang MoveGroup")
+            return False
+        times = [pt.time_from_start.sec + pt.time_from_start.nanosec * 1e-9
+                 for pt in traj.points]
+        if len(times) > 1 and any(b <= a for a, b in zip(times, times[1:])):
+            self.node.get_logger().warn("Cartesian trajectory khong duoc time-parameterize")
+            return False
 
         # Thuc thi trajectory bang MoveIt ExecuteTrajectory (yeu cau RobotTrajectory)
         if self._execute_traj_client.wait_for_server(timeout_sec=3.0):
@@ -939,50 +1158,83 @@ class RobotSkills:
             handle = exec_future.result()
             if handle and handle.accepted:
                 res_future = handle.get_result_async()
-                self._wait_for_future(res_future, timeout_sec=30.0)
+                self._wait_for_future(res_future, timeout_sec=120.0)
                 exec_res = res_future.result()
                 if exec_res:
                     err = getattr(getattr(exec_res, "result", None), "error_code", None)
                     err_val = getattr(err, "val", 0) if err else 0
                     status = getattr(exec_res, "status", 0)
-                    return bool(err_val == 1 or status == 4)
+                    return bool(err_val == 1 and status == 4)
         return False
 
-    def _attach_object_to_robot(self, object_name: str):
-        """Dinh kem vat vao tool0 trong PlanningScene de tranh va cham ao."""
+    def sync_collision_scene(self, exclude: str = None) -> bool:
+        """Mirror camera-derived cube boxes into the MoveIt planning scene."""
         if not self._planning_scene_client.wait_for_service(timeout_sec=2.0):
-            return
+            return False
+        scene = PlanningScene()
+        scene.is_diff = True
+        for name, config in self.objects_config.items():
+            collision = CollisionObject()
+            collision.header.frame_id = "base_link"
+            collision.id = name
+            if name in (exclude, self.holding_object):
+                collision.operation = CollisionObject.REMOVE
+            else:
+                collision.operation = CollisionObject.ADD
+                box = SolidPrimitive()
+                box.type = SolidPrimitive.BOX
+                box.dimensions = [float(x) for x in config["size"]]
+                collision.primitives.append(box)
+                pose = Pose()
+                position = self.object_positions[name]
+                pose.position.x, pose.position.y, pose.position.z = map(float, position)
+                pose.orientation.w = 1.0
+                collision.primitive_poses.append(pose)
+            scene.world.collision_objects.append(collision)
+        request = ApplyPlanningScene.Request()
+        request.scene = scene
+        future = self._planning_scene_client.call_async(request)
+        return self._wait_for_future(future, timeout_sec=3.0) and bool(future.result().success)
 
-        ps = PlanningScene()
-        ps.is_diff = True
-
-        attached_obj = AttachedCollisionObject()
-        attached_obj.link_name = "tool0"
-        attached_obj.object.id = object_name
-        attached_obj.object.operation = CollisionObject.ADD
-        attached_obj.touch_links = ["tool0", "gripper_flange_link", "gripper_base_link", "gripper_left_finger", "gripper_right_finger"]
-
-        ps.robot_state.attached_collision_objects.append(attached_obj)
-
-        req = ApplyPlanningScene.Request()
-        req.scene = ps
-        self._planning_scene_client.call_async(req)
-
-    def _detach_object_from_robot(self, object_name: str):
-        """Go vat the khoi tool0 trong PlanningScene."""
+    def _attach_object_to_robot(self, object_name: str) -> bool:
         if not self._planning_scene_client.wait_for_service(timeout_sec=2.0):
-            return
+            return False
+        scene = PlanningScene()
+        scene.is_diff = True
+        scene.robot_state.is_diff = True
+        attached = AttachedCollisionObject()
+        attached.link_name = "tool0"
+        attached.object.header.frame_id = "tool0"
+        attached.object.id = object_name
+        attached.object.operation = CollisionObject.ADD
+        box = SolidPrimitive()
+        box.type = SolidPrimitive.BOX
+        box.dimensions = [float(x) for x in self.objects_config[object_name]["size"]]
+        attached.object.primitives.append(box)
+        pose = Pose()
+        pose.position.z = 0.086
+        pose.orientation.w = 1.0
+        attached.object.primitive_poses.append(pose)
+        attached.touch_links = ["tool0", "gripper_flange_link", "gripper_base_link",
+                                "gripper_left_finger", "gripper_right_finger"]
+        scene.robot_state.attached_collision_objects.append(attached)
+        request = ApplyPlanningScene.Request()
+        request.scene = scene
+        future = self._planning_scene_client.call_async(request)
+        return self._wait_for_future(future, timeout_sec=3.0) and bool(future.result().success)
 
-        ps = PlanningScene()
-        ps.is_diff = True
-
-        attached_obj = AttachedCollisionObject()
-        attached_obj.link_name = "tool0"
-        attached_obj.object.id = object_name
-        attached_obj.object.operation = CollisionObject.REMOVE
-
-        ps.robot_state.attached_collision_objects.append(attached_obj)
-
-        req = ApplyPlanningScene.Request()
-        req.scene = ps
-        self._planning_scene_client.call_async(req)
+    def _detach_object_from_robot(self, object_name: str) -> bool:
+        if not self._planning_scene_client.wait_for_service(timeout_sec=2.0):
+            return False
+        scene = PlanningScene()
+        scene.is_diff = True
+        scene.robot_state.is_diff = True
+        attached = AttachedCollisionObject()
+        attached.link_name = "tool0"
+        attached.object.id = object_name
+        attached.object.operation = CollisionObject.REMOVE
+        scene.robot_state.attached_collision_objects.append(attached)
+        request = ApplyPlanningScene.Request()
+        request.scene = scene
+        future = self._planning_scene_client.call_async(request)
+        return self._wait_for_future(future, timeout_sec=3.0) and bool(future.result().success)

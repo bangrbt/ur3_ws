@@ -3,7 +3,7 @@
 """
 Scene Spawner Node:
 1. Khoi tao va cap nhat vat can va vat the trong MoveIt 2 PlanningScene (CollisionObjects).
-2. Phat Marker Visualization 3D tren RViz (ban, 3 khay phoi, 3 khoi hop, 3 khay zone A, B, C theo MSSV).
+2. Phat Marker Visualization 3D tren RViz (ban, 5 khay phoi, 5 khoi hop, 3 khay zone A, B, C theo MSSV).
 3. Phat TF Frame cho tung vat the va tung Zone.
 """
 
@@ -66,7 +66,7 @@ class SceneSpawner(Node):
         self._publish_dynamic_tf()
 
         # 3. Timer dinh ky refresh markers tren RViz (1s/lan)
-        self.timer = self.create_timer(1.0, self._publish_markers)
+        self.timer = self.create_timer(0.2, self._publish_markers)
 
         # 4. Phat collision objects sau 2 giay va 5 giay de chac chan MoveIt da san sang
         self.create_timer(2.0, self._publish_collision_objects_once)
@@ -82,7 +82,6 @@ class SceneSpawner(Node):
             for name, pos in data.items():
                 if name in self.cube_positions:
                     self.cube_positions[name] = [float(pos[0]), float(pos[1]), float(pos[2])]
-            self._publish_markers()
             self._publish_dynamic_tf()
         except Exception:
             pass

@@ -212,6 +212,12 @@ class SkillExecutor:
                 self._log(f"[ERROR] Dung thuc thi tai buoc: {call_repr} voi trang thai '{status}'")
                 break
 
+        if all_success:
+            expected = {step["object"]: step["zone"] for step in plan
+                        if step.get("skill") == "place"}
+            if expected and not self.skills.verify_placements(expected):
+                all_success = False
+                self._log("[CAMERA] VERIFY_FAILED: cube chua o dung zone sau khi robot ve home")
         self._log("-" * 65)
         if all_success:
             self._log("TASK SUCCESS")

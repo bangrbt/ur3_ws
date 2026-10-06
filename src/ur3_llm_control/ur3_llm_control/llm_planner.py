@@ -87,7 +87,7 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
 - check_zone: Inspect if a zone is occupied. Args: "zone" (string: zone_a, zone_b, zone_c)
 - find_free_position: Find an empty temporary buffer position. Args: none
 - pick: Close physical gripper and attach cube. Args: "object" (string: red_cube, yellow_cube, blue_cube, green_cube, purple_cube)
-- place: Open physical gripper and release cube into zone. Args: "object" (string), "zone" (string: zone_a, zone_b, zone_c, zone_temp_1, zone_temp_2, zone_temp_3, zone_temp)
+- place: Open physical gripper and release cube into zone. Args: "object" (string), "zone" (string: zone_a, zone_b, zone_c, zone_temp_1, zone_temp_2, zone_temp_3)
 - home: Move arm to safe observation / home pose. Args: none
 - swap: Swap positions of two cubes using a temporary buffer. Args: "object_a", "object_b"
 - stack: Stack object_top on top of object_bottom. Args: "object_top", "object_bottom"
@@ -100,7 +100,7 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
 
 ### ALLOWED ZONES (3 TARGET ZONES + TEMPORARY BUFFERS):
 - Target Zones: "zone_a", "zone_b", "zone_c"
-- Temporary Zones: "zone_temp_1", "zone_temp_2", "zone_temp_3", "zone_temp"
+- Temporary Zones: "zone_temp_1", "zone_temp_2", "zone_temp_3"
 
 ### REAL-TIME WORKSPACE SCENE STATE (CAMERA & SENSORS):
 {chr(10).join(state_lines)}
@@ -421,7 +421,7 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
                     cur_loc = cube_locs.get(obj)
                     is_in_zone = (cur_loc == target_zone) or (zone_occs.get(target_zone) == obj)
 
-                    if is_in_zone and target_zone in ["zone_a", "zone_b", "zone_c", "zone_temp"]:
+                    if is_in_zone and target_zone in ["zone_a", "zone_b", "zone_c", "zone_temp_1", "zone_temp_2", "zone_temp_3"]:
                         print(f"[OPTIMIZER] Bỏ qua thao tác thừa: '{obj}' đã ở sẵn '{target_zone}', không gắp lên rồi thả lại.", flush=True)
                         skip_indices.add(i)
                         skip_indices.add(place_idx)
@@ -612,11 +612,10 @@ Your job is to translate Natural Language Commands from the user into a STRICT J
             plan_steps = []
             # Neu zone dich dang co vat the khac: tam thoi dua vat the do ra zone_temp
             if cur_zone_occ and cur_zone_occ != target_obj:
-                temp_dest = "zone_temp_1"
-                for z_temp in ["zone_temp_1", "zone_temp_2", "zone_temp_3"]:
-                    if not zone_occs.get(z_temp):
-                        temp_dest = z_temp
-                        break
+                temp_dest = next((z for z in ["zone_temp_1", "zone_temp_2", "zone_temp_3"]
+                                  if not zone_occs.get(z)), None)
+                if temp_dest is None:
+                    return {"thought": "Khong co vi tri tam trong de giai phong zone.", "plan": []}
                 plan_steps.append({"skill": "pick", "object": cur_zone_occ})
                 plan_steps.append({"skill": "place", "object": cur_zone_occ, "zone": temp_dest})
                 thought = f"Camera phat hien '{target_zone}' dang bi '{cur_zone_occ}' chiem cho. Robot giai phong vat can sang '{temp_dest}', sau do gap '{target_obj}' vao '{target_zone}'."

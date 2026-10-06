@@ -3,7 +3,7 @@
 """
 Master Launch File: llm_robot.launch.py
 Khoi dong tron goi 1 lenh duy nhat:
-1. Mo phong Ignition Gazebo voi the gioi custom (Ban thao tac, 3 khoi hop mau, 3 vung dich Zone A, B, C).
+1. Mo phong Ignition Gazebo voi the gioi custom (Ban thao tac, 5 khoi hop mau, 3 vung dich Zone A, B, C).
 2. Robot UR3/UR3e gan tay kep 2 ngon co khi (Gripper).
 3. MoveIt 2 Motion Planning & Kinematics.
 4. RViz 2 hien thi 3D truc quan (Robot, Scene Markers, Zone Labels, Planning).
@@ -110,6 +110,7 @@ def generate_launch_description():
             "moveit_config_package": "ur3_llm_control",
             "moveit_config_file": "ur_with_gripper.srdf.xacro",
             "launch_rviz": "false",
+            "launch_servo": "false",
             "use_sim_time": "true",
         }.items(),
         condition=IfCondition(start_sim),

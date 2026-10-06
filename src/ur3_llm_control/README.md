@@ -7,10 +7,12 @@
 
 ---
 
+Báo cáo kiểm thử và giải thích thiết kế: [REPORT_LAB03.md](REPORT_LAB03.md).
+
 ## 1. Tổng quan & Kiến trúc Hệ thống
 
 Bài thực hành 03 nâng cấp từ Bài 02 với các bổ sung cốt lõi:
-1. **Gripper vật lý cử động thực tế:** Tay kẹp 2 ngón (prismatic joints) điều khiển qua `JointPositionController` kết hợp plugin `DetachableJoint` trong Ignition Gazebo, thực hiện gắp, giữ, di chuyển và thả vật thật. **Tuyệt đối không dùng teleport (`set_pose`) để giả lập gắp vật.**
+1. **Gripper vật lý cử động thực tế:** Tay kẹp 2 ngón dùng khớp trượt và `JointPositionController`. Khi hai ngón bao quanh cube, hệ thống tạo `DetachableJoint` trong Gazebo để giữ vật. Khi đặt, robot chờ vật ổn định trên bàn, tháo joint rồi mở ngón từ từ để tránh đẩy văng cube. PlanningScene của MoveIt được cập nhật riêng; các skill gắp/đặt không dùng `set_pose`.
 2. **Camera RGB & Node Thị giác máy tính (`camera_perception`):** Camera góc nhìn từ trên xuống (overhead camera), dùng OpenCV HSV Color Segmentation và mô hình Pinhole Camera ngược để phát hiện tọa độ thế giới của toàn bộ 5 khối hộp và trạng thái chiếm giữ của các vùng trong thời gian thực.
 3. **Môi trường 5 Khối & 3 Vùng đích + Vùng đệm tạm:**
    - 5 khối: `red_cube`, `yellow_cube`, `blue_cube`, `green_cube`, `purple_cube`.
@@ -55,6 +57,12 @@ $$XX = 23 \implies P = 23 \pmod 6 = 5$$
 
 ## 3. Hướng dẫn cấu hình kết nối 9Router (LLM Gateway)
 
+Trước khi launch, cung cấp khóa bằng biến môi trường trong terminal chạy ROS:
+```bash
+export NINE_ROUTER_API_KEY="<khoa-cua-ban>"
+```
+Không ghi khóa vào YAML hoặc commit lên Git. Khóa cũ đã từng nằm trong repository cần được thay mới.
+
 ### 9Router là gì?
 **9Router** là cổng API trung gian (API Gateway) tương thích chuẩn OpenAI REST API v1, cho phép kết nối trực tiếp từ local tới các mô hình ngôn ngữ lớn (như Google Gemini, OpenAI GPT) qua một endpoint duy nhất.
 
@@ -67,23 +75,18 @@ $$XX = 23 \implies P = 23 \pmod 6 = 5$$
 2. File cấu hình `config/llm_config.yaml` đã được thiết lập sẵn sàng:
    ```yaml
    base_url: "http://localhost:20128/v1"
-   api_key: "sk-4e6f373b240d5083-b803ys-53876dfb"
+   api_key: ""  # cung cap bang NINE_ROUTER_API_KEY
    model: "gemini/gemini-3.5-flash-lite"
    fallback_to_smart_planner: false  # Chạy 100% Online LLM
    ```
-3. Mô hình **`gemini/gemini-3.5-flash-lite`** được tối ưu hóa phản hồi cực nhanh (~1s), phân tích chuẩn xác cả tiếng Anh và tiếng Việt, hỗ trợ cả JSON và SSE streaming chunks.
+3. Mô hình **`gemini/gemini-3.5-flash-lite`** được cấu hình để phân tích câu lệnh tiếng Anh và tiếng Việt, hỗ trợ cả JSON và SSE streaming chunks.
 4. **Cảnh báo mất kết nối:** Nếu 9Router bị tắt hoặc mất mạng, hệ thống sẽ hiện thông báo cảnh báo rõ ràng trên console để bạn dễ dàng kiểm tra.
 
 ---
 
 ## 4. Hướng dẫn Khởi chạy Hệ thống
 
-### Bước 1: Dọn dẹp các tiến trình ngầm cũ (Tránh lỗi controller)
-```bash
-killall -9 ruby ign gzserver gzclient rviz2 2>/dev/null || pkill -9 -f "ign gazebo"
-```
-
-### Bước 2: Build Workspace (nếu vừa clone về)
+### Bước 1: Build Workspace (nếu vừa clone về)
 ```bash
 cd ~/ur3_ws
 source /opt/ros/humble/setup.bash
@@ -91,14 +94,14 @@ colcon build --packages-select ur3_llm_control
 source install/setup.bash
 ```
 
-### Bước 3: Khởi chạy Trọn gói 1 Lệnh (Gazebo + MoveIt 2 + RViz + LLM)
+### Bước 2: Khởi chạy Trọn gói 1 Lệnh (Gazebo + MoveIt 2 + RViz + LLM)
 ```bash
 source ~/ur3_ws/install/setup.bash
 ros2 launch ur3_llm_control llm_robot.launch.py
 ```
 
 *Hệ thống sẽ tự động:*
-1. Mở Gazebo với bàn thao tác, 3 khối hộp màu (`red_cube`, `yellow_cube`, `blue_cube`) và 4 vùng (`zone_a`, `zone_b`, `zone_c`, `zone_temp`).
+1. Mở Gazebo với bàn thao tác, 5 block, 3 zone đích và 3 vùng đệm riêng biệt.
 2. Mở cánh tay robot UR3 đã gắn tay kẹp cơ khí 2 ngón (`Gripper`).
 3. Khởi động MoveIt 2 và mở RViz với các 3D Marker trực quan.
 4. Mở cửa sổ giao diện dòng lệnh tương tác trên Terminal để bạn nhập lệnh tự nhiên!
@@ -193,10 +196,10 @@ Giả sử trên bàn, camera phát hiện `zone_b` đang bị `blue_cube` chi�
 ```text
 Put the red cube in Zone B.
 ```
-**Hệ thống thị giác máy tính và LLM phối hợp xử lý:**
+**Camera cung cấp trạng thái; lớp an toàn bổ sung bước dời vật cản vào kế hoạch của LLM:**
 1. Camera xác định `zone_b` đang có `blue_cube`.
-2. Hệ thống tìm vị trí đệm tạm phù hợp (`zone_temp_1`).
-3. Di chuyển `blue_cube` ra `zone_temp_1`.
+2. Hệ thống tìm vị trí đệm tạm phù hợp (`zone_temp_3`).
+3. Di chuyển `blue_cube` ra `zone_temp_3`.
 4. Gắp `red_cube` đặt vào `zone_b`.
 5. Đưa tay máy về vị trí nghỉ (`home`).
 
@@ -207,20 +210,18 @@ USER COMMAND:
   Put the red cube in Zone B.
 -----------------------------------------------------------------
 LLM REASONING (9Router Online / Gemini 3.5 Flash-lite):
-  Camera phát hiện Zone B đang bị chiếm bởi 'blue_cube'. Cần kiểm tra vùng, di dời 'blue_cube' ra vị trí tạm 'zone_temp_1', sau đó gắp 'red_cube' đặt vào 'zone_b'.
+  Camera phát hiện Zone B đang bị chiếm bởi 'blue_cube'. Cần kiểm tra vùng, di dời 'blue_cube' ra vị trí tạm 'zone_temp_3', sau đó gắp 'red_cube' đặt vào 'zone_b'.
 -----------------------------------------------------------------
 LLM PLAN:
-    check_zone(zone_b)
     pick(blue_cube)
-    place(blue_cube, zone_temp_1)
+    place(blue_cube, zone_temp_3)
     pick(red_cube)
     place(red_cube, zone_b)
     home()
 -----------------------------------------------------------------
 EXECUTION:
-check_zone(zone_b) ........... SUCCESS (Occupied by blue_cube)
 pick(blue_cube) .............. SUCCESS
-place(blue_cube, zone_temp_1)  SUCCESS
+place(blue_cube, zone_temp_3)  SUCCESS
 pick(red_cube) ............... SUCCESS
 place(red_cube, zone_b) ...... SUCCESS
 home() ....................... SUCCESS
@@ -254,9 +255,9 @@ Ly do: Object 'apple' khong hop le trong pick!
 | `check_zone(zone)` | `zone` | Kiểm tra trạng thái chiếm giữ của một vùng | `Camera Perception Scene State` |
 | `find_free_position()` | Không | Tìm vị trí vùng đệm tạm đang còn trống | `Internal Space Allocation` |
 | `home()` | Không | Đưa robot về tư thế an toàn quan sát toàn cảnh | `MoveGroup (Joint Constraints)` |
-| `open_gripper()` | Không | Mở kẹp vật lý qua joint command và nhả DetachableJoint | `/gripper/left_cmd, /gripper/detach_*` |
-| `close_gripper(object)` | `object` | Đóng kẹp vật lý và kích hoạt DetachableJoint giữ vật | `/gripper/left_cmd, /gripper/attach_*` |
-| `move_above(target)` | `object`/`zone` | Di chuyển đến điểm trên không cách vật/vùng $14\,\text{cm}$ | `MoveGroup (Cartesian Path / Pose Target)` |
+| `open_gripper()` | Không | Mở ngón kẹp trong Gazebo và cập nhật PlanningScene | `/gripper/left_cmd`, `/gripper/right_cmd` |
+| `close_gripper(object)` | `object` | Đóng ngón kẹp, kiểm tra độ lệch tâm rồi giữ bằng joint vật lý Gazebo và cập nhật PlanningScene | `/gripper/left_cmd`, `/gripper/right_cmd` |
+| `move_above(target)` | `object`/`zone` | Di chuyển đến điểm an toàn trên vật/vùng, mặc định cao $20\,\text{cm}$ | `MoveGroup (Cartesian Path / Pose Target)` |
 | `move_to_zone(zone)` | `zone` | Di chuyển đến phía trên vùng Zone | `MoveGroup (Cartesian Path / Pose Target)` |
 | `pick(object)` | `object` | Chu trình gắp: tiếp cận $\to$ hạ $\to$ kẹp vật lý $\to$ nhấc | `Cartesian Path Planning (No Teleport)` |
 | `place(object, zone)` | `object`, `zone` | Chu trình đặt: tiếp cận $\to$ hạ $\to$ mở kẹp $\to$ nhấc | `Cartesian Path Planning (No Teleport)` |
@@ -264,3 +265,15 @@ Ly do: Object 'apple' khong hop le trong pick!
 | `stack(top, bottom)` | `top`, `bottom` | Xếp chồng khối này lên trên đỉnh khối kia | `Cartesian Path Planning` |
 | `inspect_scene()` | Không | Báo cáo chi tiết vị trí 5 khối và trạng thái các zone | `Scene State Query` |
 
+
+---
+
+## 7. Kiểm tra Bài 03 sau khi sửa
+
+- Camera được gắn cố định trên cao để thấy đồng thời 5 block và 3 zone. Camera gắn tay có thể hỗ trợ tinh chỉnh điểm gắp ở gần, nhưng tự nó không cho ảnh toàn cảnh liên tục khi tay che vùng đích.
+- Hệ thống chỉ nhận lệnh khi ảnh mới nhận diện đủ 5 block. Sau khi hoàn tất, camera xác nhận các cube đã đặt nằm đúng vùng; nếu không, kết quả là `TASK FAILED`.
+- Trước khi gắp, MoveIt nhận collision box của những cube còn lại; cube mục tiêu được bỏ khỏi world collision object khi tiếp xúc và được gắn vào kẹp trong PlanningScene. Chuyển ngang thực hiện ở độ cao an toàn.
+- Demo bắt buộc có xung đột: từ cảnh ban đầu, ra lệnh `Put the blue cube in zone B`, chờ hoàn tất; sau đó `Put the red cube in zone B`. Kế hoạch thứ hai phải dời blue cube sang vùng tạm còn trống rồi mới đặt red cube. Quay đồng thời Gazebo, camera annotated, terminal và kết quả cuối.
+- Kiểm tra camera: `ros2 topic echo --once /scene/camera_state`. Trường `camera_active` phải là `true`, `detected_count` phải là `5`. Nếu thiếu block, đưa robot về home, kiểm tra ánh sáng và hiệu chuẩn HSV trước khi thử lại.
+
+Gazebo trên máy thử nghiệm chạy khoảng 0,15–0,20 lần thời gian thực ở chế độ không GUI; tốc độ quan sát được phụ thuộc mạnh vào CPU/GPU. Kiểm tra trực tiếp cube được nâng, đi theo kẹp và rời kẹp khi mở sau mỗi thay đổi phiên bản Gazebo hoặc physics engine. Video demo và báo cáo nộp môn học cần ghi từ một lần chạy Gazebo hoàn chỉnh.

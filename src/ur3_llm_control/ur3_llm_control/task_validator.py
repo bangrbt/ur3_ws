@@ -7,6 +7,7 @@ Phat hien va tu choi cac ke hoach vi pham logic hoac tham so khong hop le.
 """
 
 from typing import Tuple, List, Dict, Any
+from .plan_safety import canonical_zone
 
 ALLOWED_SKILLS = {
     "home",
@@ -39,7 +40,6 @@ ALLOWED_ZONES = {
     "zone_a",
     "zone_b",
     "zone_c",
-    "zone_temp",
     "zone_temp_1",
     "zone_temp_2",
     "zone_temp_3"
@@ -54,7 +54,7 @@ class TaskValidator:
         self.allowed_objects = ALLOWED_OBJECTS
         self.allowed_zones = ALLOWED_ZONES
 
-    def validate_plan(self, plan_data: Dict[str, Any], initial_holding: str = None) -> Tuple[bool, str]:
+    def validate_plan(self, plan_data: Dict[str, Any], initial_holding: str = None, scene_state: dict = None) -> Tuple[bool, str]:
         """
         Xac thuc toan bo chuoi skill trong plan_data.
         
@@ -73,19 +73,31 @@ class TaskValidator:
 
         actions: List[Dict[str, Any]] = plan_data["plan"]
         if len(actions) == 0:
-            thought = plan_data.get("thought", "").strip()
+            thought = str(plan_data.get("thought") or "").strip()
             if thought:
                 return False, f"Yêu cầu bị từ chối: {thought}"
             return False, "Kế hoạch rỗng (không có bước nào cần thực thi)."
 
         # Theo doi trang thai ao de kiem tra tien de / hau de (Preconditions / Postconditions)
         simulated_holding = initial_holding
+        occupants = {canonical_zone(z): obj for z, obj in
+                     (scene_state or {}).get("zone_occupants", {}).items()}
+        locations = dict((scene_state or {}).get("cube_locations", {}))
 
         for idx, step in enumerate(actions, 1):
             if not isinstance(step, dict):
                 return False, f"Buoc {idx} khong hop le (phai la mot dictionary)."
+            text_fields = ("skill", "object", "zone", "object_a", "object_b",
+                           "object1", "object2", "object_top", "object_bottom",
+                           "top", "bottom")
+            for field in text_fields:
+                if field in step and step[field] is not None and not isinstance(step[field], str):
+                    return False, f"Buoc {idx}: tham so '{field}' phai la chuoi."
 
-            skill = step.get("skill", "").strip().lower()
+            raw_skill = step.get("skill")
+            if not isinstance(raw_skill, str):
+                return False, f"Buoc {idx}: skill phai la chuoi."
+            skill = raw_skill.strip().lower()
             if not skill:
                 return False, f"Buoc {idx} thieu ten 'skill'."
 
@@ -100,6 +112,9 @@ class TaskValidator:
                     return False, f"Buoc {idx}: Object '{obj}' khong hop le trong pick! Cac vat the hop le: {sorted(list(self.allowed_objects))}."
                 if simulated_holding is not None:
                     return False, f"Buoc {idx}: Xung dot logic - Tay kep dang giu '{simulated_holding}', khong the pick them '{obj}'!"
+                old_zone = canonical_zone(locations.get(obj))
+                if old_zone in occupants and occupants[old_zone] == obj:
+                    occupants[old_zone] = None
                 simulated_holding = obj
 
             elif skill == "place":
@@ -111,6 +126,10 @@ class TaskValidator:
                     return False, f"Buoc {idx}: Zone '{zone}' khong hop le trong place! Cac vung hop le: {sorted(list(self.allowed_zones))}."
                 if simulated_holding != obj:
                     return False, f"Buoc {idx}: Xung dot logic - Robot hien khong giu '{obj}' (dang giu '{simulated_holding}'), khong the place!"
+                if occupants.get(zone) not in (None, obj):
+                    return False, f"Buoc {idx}: {zone} dang co {occupants[zone]}."
+                occupants[zone] = obj
+                locations[obj] = zone
                 simulated_holding = None
 
             elif skill == "swap":
@@ -161,4 +180,4 @@ class TaskValidator:
             elif skill in {"detect_objects", "find_free_position"}:
                 pass
 
-        return True, "Kế hoạch hợp lệ 100% theo quy chuẩn."
+        return True, "Kế hoạch hợp lệ theo trạng thái camera và thứ tự skill."
