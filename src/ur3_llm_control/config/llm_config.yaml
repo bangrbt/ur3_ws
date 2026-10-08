@@ -1,0 +1,20 @@
+# Cau hinh ket noi 9Router / OpenAI LLM API Gateway
+
+# URL API cua 9Router (tuong thich chuan OpenAI v1, chay local qua 'npx 9router')
+base_url: "http://localhost:20128/v1"
+
+# API Key cua 9Router (neu de trong, he thong se doc tu bien moi truong NINE_ROUTER_API_KEY hoac OPENAI_API_KEY)
+api_key: "sk-4e6f373b240d5083-b803ys-53876dfb"
+
+# Model LLM duoc khuyen nghi qua 9Router: gemini/gemini-3.5-flash-lite
+model: "gemini/gemini-3.5-flash-lite"
+
+# Nhiet do va do dai toi da
+temperature: 0.1
+max_tokens: 800
+
+# Che do Offline Smart Planner: MAC DINH TAT (false).
+# Chay 100% ONLINE LLM goi truc tiep qua 9Router Gateway.
+# Chuc nang Offline CHI duoc phep bat khi nguoi dung chu dong doi gia tri nay thanh true.
+fallback_to_smart_planner: false
+
